@@ -24,6 +24,42 @@ interface EmailData {
   from?: string;
 }
 
+interface ApplicationData {
+  id?: number;
+  legalEntityName: string;
+  dba?: string;
+  taxEIN: string;
+  dunsNumber?: string;
+  phoneNo: string;
+  billToAddress: string;
+  billToCityStateZip: string;
+  shipToAddress: string;
+  shipToCityStateZip: string;
+  buyerNameEmail: string;
+  accountsPayableNameEmail: string;
+  wantInvoicesEmailed?: boolean;
+  invoiceEmail?: string;
+  trade1Name?: string;
+  trade1Address?: string;
+  trade1CityStateZip?: string;
+  trade1Attn?: string;
+  trade1Email?: string;
+  trade1FaxNo?: string;
+  trade2Name?: string;
+  trade2Address?: string;
+  trade2CityStateZip?: string;
+  trade2Attn?: string;
+  trade2Email?: string;
+  trade2FaxNo?: string;
+  trade3Name?: string;
+  trade3Address?: string;
+  trade3CityStateZip?: string;
+  trade3Attn?: string;
+  trade3Email?: string;
+  trade3FaxNo?: string;
+  termsAgreed?: boolean;
+}
+
 export async function sendEmail(data: EmailData) {
   try {
     const { data: result, error } = await resend.emails.send({
@@ -44,7 +80,7 @@ export async function sendEmail(data: EmailData) {
   }
 }
 
-export async function sendApplicationSummary(applicationData: any) {
+export async function sendApplicationSummary(applicationData: ApplicationData) {
   try {
     let analysis = '';
     

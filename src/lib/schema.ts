@@ -1,5 +1,5 @@
 import { pgTable, serial, text, timestamp, boolean, integer, index } from 'drizzle-orm/pg-core';
-import { sql, Index } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 // Customer Applications table
 export const customerApplications = pgTable('customer_applications', {

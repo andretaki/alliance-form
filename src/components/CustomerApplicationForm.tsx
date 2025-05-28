@@ -848,7 +848,7 @@ export default function CustomerApplicationForm() {
                     <h3 className="font-bold text-gray-800 mb-2">5. Product Returns</h3>
                     <ul className="list-disc ml-6 space-y-2 text-gray-600">
                       <li><strong>Return Authorization:</strong> No returns will be accepted without prior written authorization in the form of a Return Goods Authorization (RGA) issued by Alliance Chemical.</li>
-                      <li><strong>Restocking Fees:</strong> All authorized returns are subject to restocking fees and return freight charges, which will be determined at Alliance Chemical's sole discretion.</li>
+                      <li><strong>Restocking Fees:</strong> All authorized returns are subject to restocking fees and return freight charges, which will be determined at Alliance Chemical&apos;s sole discretion.</li>
                       <li><strong>Condition of Products:</strong> Returned products must be in their original, unopened containers and in resalable condition. Alliance Chemical reserves the right to reject any returns that do not meet these criteria.</li>
                     </ul>
                   </div>
@@ -863,7 +863,7 @@ export default function CustomerApplicationForm() {
                     <ul className="list-disc ml-6 space-y-2 text-gray-600">
                       <li><strong>Assessment of Suitability:</strong> It is your sole responsibility to determine the suitability and safety of the chemical products and containers supplied by Alliance Chemical for your intended use.</li>
                       <li><strong>Safety Data Sheets (SDS):</strong> You acknowledge receipt of, or access to, Safety Data Sheets for all chemical products purchased and agree to review and understand all safety information prior to use.</li>
-                      <li><strong>Proper Use:</strong> You agree to use the products in accordance with the manufacturer's guidelines and all applicable laws and regulations, including those related to health, safety, and the environment.</li>
+                      <li><strong>Proper Use:</strong> You agree to use the products in accordance with the manufacturer&apos;s guidelines and all applicable laws and regulations, including those related to health, safety, and the environment.</li>
                       <li><strong>Indemnification:</strong> You agree to indemnify and hold harmless Alliance Chemical from any and all claims, damages, or liabilities arising from your handling, storage, or use of the products.</li>
                     </ul>
                   </div>

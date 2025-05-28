@@ -132,7 +132,7 @@ export default function InternationalShippingForm() {
               Shipping Request Submitted!
             </h1>
             <p className="text-gray-600 mb-8 leading-relaxed">
-              Thank you for your international shipping request. We'll process your order and contact you with shipping details and tracking information within 24 hours.
+              Thank you for your international shipping request. We&apos;ll process your order and contact you with shipping details and tracking information within 24 hours.
             </p>
             <button 
               onClick={() => setIsSubmitted(false)}
