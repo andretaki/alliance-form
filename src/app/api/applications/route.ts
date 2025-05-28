@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { customerApplications, tradeReferences } from '@/lib/schema';
+import { sendApplicationSummary } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -59,6 +60,14 @@ export async function POST(request: Request) {
         cityStateZip: data.trade3CityStateZip,
         attn: data.trade3Attn,
       });
+    }
+
+    // Send email summary
+    try {
+      await sendApplicationSummary({ ...data, id: application.id });
+    } catch (emailError) {
+      console.error('Error sending email:', emailError);
+      // Don't fail the entire request if email fails
     }
 
     return NextResponse.json({ success: true, applicationId: application.id });

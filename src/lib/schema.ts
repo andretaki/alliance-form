@@ -1,4 +1,5 @@
-import { pgTable, serial, text, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, boolean, integer, json } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // Customer Applications table
 export const customerApplications = pgTable('customer_applications', {
@@ -33,4 +34,95 @@ export const tradeReferences = pgTable('trade_references', {
   attn: text('attn'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}); 
+});
+
+// Terms and Conditions table
+export const terms = pgTable('terms', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  version: text('version').notNull().default('1.0'),
+  orderIndex: integer('order_index').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  effectiveDate: timestamp('effective_date').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const digitalSignatures = pgTable('digital_signatures', {
+  id: serial('id').primaryKey(),
+  applicationId: integer('application_id').references(() => customerApplications.id),
+  signatureHash: text('signature_hash').notNull(),
+  ipAddress: text('ip_address').notNull(),
+  userAgent: text('user_agent').notNull(),
+  signedDocumentUrl: text('signed_document_url').notNull(),
+  signedAt: timestamp('signed_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const internationalShippingRequests = pgTable('international_shipping_requests', {
+  id: serial('id').primaryKey(),
+  // Contact Information
+  firstName: text('first_name').notNull(),
+  lastName: text('last_name').notNull(),
+  email: text('email').notNull(),
+  phone: text('phone').notNull(),
+  company: text('company'),
+  
+  // Shipping Address
+  shippingAddress: text('shipping_address').notNull(),
+  addressLine2: text('address_line2'),
+  city: text('city').notNull(),
+  stateProvince: text('state_province').notNull(),
+  postalCode: text('postal_code').notNull(),
+  country: text('country').notNull(),
+  
+  // Order Details
+  productDescription: text('product_description').notNull(),
+  quantity: text('quantity').notNull(),
+  estimatedValue: text('estimated_value').notNull(),
+  orderRequest: text('order_request').notNull(),
+  specialInstructions: text('special_instructions'),
+  
+  // Shipping Preferences
+  shippingMethod: text('shipping_method').notNull(),
+  customShippingMethod: text('custom_shipping_method'),
+  urgency: text('urgency').notNull(),
+  trackingRequired: boolean('tracking_required').default(false),
+  insuranceRequired: boolean('insurance_required').default(false),
+  
+  // Customs & Declaration
+  purposeOfShipment: text('purpose_of_shipment'),
+  customPurpose: text('custom_purpose'),
+  hsCode: text('hs_code'),
+  countryOfOrigin: text('country_of_origin'),
+  
+  // Status and Timestamps
+  status: text('status').default('pending'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const vendorForms = pgTable('vendor_forms', {
+  id: serial('id').primaryKey(),
+  applicationId: integer('application_id').references(() => customerApplications.id),
+  fileName: text('file_name').notNull(),
+  fileUrl: text('file_url').notNull(),
+  fileType: text('file_type').notNull(),
+  fileSize: integer('file_size').notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Add indexes for faster lookups
+export const vendorFormsIndexes = pgIndex('vendor_forms_application_id_idx').on(vendorForms.applicationId);
+
+// Add trigger for updating updated_at
+export const vendorFormsUpdatedAtTrigger = sql`
+  CREATE TRIGGER vendor_forms_updated_at
+  BEFORE UPDATE ON vendor_forms
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+`; 
