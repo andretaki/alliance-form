@@ -1,5 +1,5 @@
-import { pgTable, serial, text, timestamp, boolean, integer, json } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+import { pgTable, serial, text, timestamp, boolean, integer, index } from 'drizzle-orm/pg-core';
+import { sql, Index } from 'drizzle-orm';
 
 // Customer Applications table
 export const customerApplications = pgTable('customer_applications', {
@@ -117,7 +117,7 @@ export const vendorForms = pgTable('vendor_forms', {
 });
 
 // Add indexes for faster lookups
-export const vendorFormsIndexes = pgIndex('vendor_forms_application_id_idx').on(vendorForms.applicationId);
+export const vendorFormsIndexes = index('vendor_forms_application_id_idx').on(vendorForms.applicationId);
 
 // Add trigger for updating updated_at
 export const vendorFormsUpdatedAtTrigger = sql`

@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
+import { Resend } from 'resend';
 
 // Initialize Mailgun
 const mailgun = new Mailgun(formData);
@@ -13,6 +14,35 @@ const mg = mailgun.client({
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 }) : null;
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+interface EmailData {
+  to: string;
+  subject: string;
+  html: string;
+  from?: string;
+}
+
+export async function sendEmail(data: EmailData) {
+  try {
+    const { data: result, error } = await resend.emails.send({
+      from: data.from || 'Alliance Chemical <noreply@alliancechemical.com>',
+      to: data.to,
+      subject: data.subject,
+      html: data.html,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
+}
 
 export async function sendApplicationSummary(applicationData: any) {
   try {

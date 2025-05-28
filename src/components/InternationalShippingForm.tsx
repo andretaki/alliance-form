@@ -686,6 +686,13 @@ export default function InternationalShippingForm() {
                   <h4 className="font-semibold text-gray-800 mb-1">5. Liability</h4>
                   <p className="text-gray-600">Liability for loss or damage is limited to the declared value of the shipment unless additional insurance is purchased.</p>
                 </div>
+
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-1">6. Additional Information</h4>
+                  <p className="text-gray-600">
+                    Please provide any additional information that may be helpful for processing your international shipping request. This could include special handling instructions, customs documentation requirements, or any other relevant details.
+                  </p>
+                </div>
               </div>
             </div>
 

@@ -27,6 +27,7 @@
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.56.4",
     "react-signature-canvas": "^1.1.0-alpha.2",
+    "resend": "^4.5.1",
     "zod": "^3.25.23"
   },
   "devDependencies": {

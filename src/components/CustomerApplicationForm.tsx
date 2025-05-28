@@ -836,7 +836,7 @@ export default function CustomerApplicationForm() {
 
                   <div>
                     <h3 className="font-bold text-gray-800 mb-2">3. Late Payments and Collection Costs</h3>
-                    <p className="text-gray-600">Should your account become delinquent and be placed for collection; you agree to pay a finance charge of 1.5% per month (18% per annum) on the unpaid balance. Additionally, you agree to reimburse Alliance Chemical for all costs of collection, including but not limited to collection agency fees, court costs, and reasonable attorney's fees.</p>
+                    <p className="text-gray-600">Should your account become delinquent and be placed for collection; you agree to pay a finance charge of 1.5% per month (18% per annum) on the unpaid balance. Additionally, you agree to reimburse Alliance Chemical for all costs of collection, including but not limited to collection agency fees, court costs, and reasonable attorney&apos;s fees.</p>
                   </div>
 
                   <div>

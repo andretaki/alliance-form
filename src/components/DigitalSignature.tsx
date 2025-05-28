@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 
 interface DigitalSignatureProps {
   applicationId: number;
-  onSignatureComplete: (signatureData: {
+  onSignatureComplete: (data: {
     signatureHash: string;
     signedDocumentUrl: string;
   }) => void;
@@ -176,7 +176,12 @@ export default function DigitalSignature({ applicationId, onSignatureComplete }:
             </div>
 
             <div className="mt-8 pt-6 border-t border-gray-300">
-              <p className="font-semibold text-gray-800">Your signature below indicates your acceptance of and agreement to the terms and conditions as stated above.</p>
+              <p className="font-semibold text-gray-800">
+                By signing below, you acknowledge that you have read and agree to the terms and conditions. Your signature will be recorded with a timestamp and IP address for verification purposes.
+              </p>
+              <p className="text-gray-600">
+                Please use your mouse or touch screen to sign in the box below. Click &quot;Clear&quot; to start over if needed.
+              </p>
             </div>
           </div>
         </div>
