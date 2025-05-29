@@ -1,8 +1,11 @@
 import { pgTable, serial, text, timestamp, boolean, integer, index, pgSchema } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
+// Define the alliance_chemical schema
+export const allianceChemicalSchema = pgSchema('alliance_chemical');
+
 // Customer Applications table
-export const customerApplications = pgTable('customer_applications', {
+export const customerApplications = allianceChemicalSchema.table('customer_applications', {
   id: serial('id').primaryKey(),
   legalEntityName: text('legal_entity_name').notNull(),
   dba: text('dba'),
@@ -23,7 +26,7 @@ export const customerApplications = pgTable('customer_applications', {
 });
 
 // Trade References table
-export const tradeReferences = pgTable('trade_references', {
+export const tradeReferences = allianceChemicalSchema.table('trade_references', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id),
   name: text('name'),
@@ -37,7 +40,7 @@ export const tradeReferences = pgTable('trade_references', {
 });
 
 // Terms table
-export const terms = pgTable('terms', {
+export const terms = allianceChemicalSchema.table('terms', {
   id: serial('id').primaryKey(),
   title: text('title').notNull(),
   content: text('content').notNull(),
@@ -50,7 +53,7 @@ export const terms = pgTable('terms', {
 });
 
 // Digital Signatures table
-export const digitalSignatures = pgTable('digital_signatures', {
+export const digitalSignatures = allianceChemicalSchema.table('digital_signatures', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id),
   signatureHash: text('signature_hash').notNull(),
@@ -63,7 +66,7 @@ export const digitalSignatures = pgTable('digital_signatures', {
 });
 
 // Vendor Forms table
-export const vendorForms = pgTable('vendor_forms', {
+export const vendorForms = allianceChemicalSchema.table('vendor_forms', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id),
   fileName: text('file_name').notNull(),
@@ -76,7 +79,7 @@ export const vendorForms = pgTable('vendor_forms', {
 });
 
 // International Shipping Requests table
-export const internationalShippingRequests = pgTable('international_shipping_requests', {
+export const internationalShippingRequests = allianceChemicalSchema.table('international_shipping_requests', {
   id: serial('id').primaryKey(),
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
