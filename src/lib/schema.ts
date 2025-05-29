@@ -1,9 +1,6 @@
 import { pgTable, serial, text, timestamp, boolean, integer, index, pgSchema } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-// Define the schema name constant
-const schemaName = 'alliance_chemical';
-
 // Customer Applications table
 export const customerApplications = pgTable('customer_applications', {
   id: serial('id').primaryKey(),
@@ -23,7 +20,7 @@ export const customerApplications = pgTable('customer_applications', {
   termsAgreed: boolean('terms_agreed').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, { schema: schemaName });
+});
 
 // Trade References table
 export const tradeReferences = pgTable('trade_references', {
@@ -37,7 +34,7 @@ export const tradeReferences = pgTable('trade_references', {
   attn: text('attn'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, { schema: schemaName });
+});
 
 // Terms table
 export const terms = pgTable('terms', {
@@ -50,7 +47,7 @@ export const terms = pgTable('terms', {
   effectiveDate: timestamp('effective_date').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, { schema: schemaName });
+});
 
 // Digital Signatures table
 export const digitalSignatures = pgTable('digital_signatures', {
@@ -63,7 +60,7 @@ export const digitalSignatures = pgTable('digital_signatures', {
   signedAt: timestamp('signed_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, { schema: schemaName });
+});
 
 // Vendor Forms table
 export const vendorForms = pgTable('vendor_forms', {
@@ -73,10 +70,10 @@ export const vendorForms = pgTable('vendor_forms', {
   fileUrl: text('file_url').notNull(),
   fileType: text('file_type').notNull(),
   fileSize: integer('file_size').notNull(),
-  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
+  uploadedAt: timestamp('uploaded_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, { schema: schemaName });
+});
 
 // International Shipping Requests table
 export const internationalShippingRequests = pgTable('international_shipping_requests', {
@@ -109,4 +106,4 @@ export const internationalShippingRequests = pgTable('international_shipping_req
   status: text('status').default('pending'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-}, { schema: schemaName }); 
+}); 
