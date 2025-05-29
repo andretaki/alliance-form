@@ -999,8 +999,8 @@ export default function CustomerApplicationForm() {
                 If you have any questions about your application or need assistance, please contact us:
               </p>
               <div className="space-y-2 text-sm text-gray-700">
-                <p><strong>Email:</strong> credit@alliancechemical.com</p>
-                <p><strong>Phone:</strong> (555) 123-4567</p>
+                <p><strong>Email:</strong> sales@alliancechemical.com</p>
+                <p><strong>Phone:</strong> (512) 365-6838</p>
                 <p><strong>Hours:</strong> Monday - Friday, 8:00 AM - 5:00 PM EST</p>
               </div>
             </div>
