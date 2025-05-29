@@ -68,13 +68,13 @@ The system includes **automated AI credit analysis** for every credit applicatio
 ### What It Analyzes:
 - **Company Information**: Legal entity, DBA, tax EIN, DUNS number
 - **Contact Details**: Professional email formats, phone numbers
-- **Address Verification**: Billing and shipping addresses
+- **Address Verification**: Billing and shipping addresses (Note: AI checks formatting/completeness, but cannot perform live verification against a database)
 - **Trade References**: Quality and completeness of references
 - **Risk Assessment**: Missing data, red flags, inconsistencies
 
 ### AI Analysis Process:
 1. 📝 Customer submits application
 2. 🤖 **o1 model analyzes all application data**
-3. 📧 **Comprehensive credit report emailed to Alliance Chemical**
+3. 📧 **Comprehensive credit report, including AI insights from the gpt-4o model, emailed to Alliance Chemical**
 
 The AI provides thorough B2B credit evaluation with decision recommendations, credit limits, payment terms, and risk levels.

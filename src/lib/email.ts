@@ -206,7 +206,7 @@ SCORING CRITERIA:
 Be direct, skeptical, and don't sugar-coat anything. If it smells fishy, call it out. This is B2B chemical distribution - we need solid, reliable customers only.`;
 
       const completion = await openai.chat.completions.create({
-        model: "o1",
+        model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         max_completion_tokens: 1500,
       });

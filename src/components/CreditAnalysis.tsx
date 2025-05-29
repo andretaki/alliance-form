@@ -89,13 +89,13 @@ export default function CreditAnalysis({ applicationId }: CreditAnalysisProps) {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center mr-4">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">AI Credit Analysis</h2>
-            <p className="text-gray-600">Powered by GPT-4 mini</p>
+            <p className="text-gray-600">Powered by OpenAI</p>
           </div>
         </div>
         

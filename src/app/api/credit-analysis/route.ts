@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'o4-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -161,7 +161,7 @@ Provide your analysis in the following JSON format:
       applicationId,
       analysis,
       analyzedAt: new Date().toISOString(),
-      model: 'o4-mini'
+      model: 'gpt-4o'
     };
 
     return NextResponse.json({
