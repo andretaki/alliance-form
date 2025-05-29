@@ -5,7 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
 import DigitalSignature from './DigitalSignature';
-import CreditAnalysis from './CreditAnalysis';
 
 // Form validation schema
 const formSchema = z.object({
@@ -100,7 +99,8 @@ export default function CustomerApplicationForm() {
       }
 
       const result = await response.json();
-      setFormData(result); // Store the application data
+      console.log('📥 API Response:', result);
+      setFormData(result.application); // Extract the application object from the response
       
       // Show signature component after successful submission
       setShowSignature(true);
@@ -118,6 +118,8 @@ export default function CustomerApplicationForm() {
     signedDocumentUrl: string;
   }) => {
     try {
+      console.log('📝 Submitting signature for application ID:', formData!.id);
+
       // Get a more appropriate IP address or use a fallback
       const getClientIP = () => {
         // In a real application, you might want to get this from the server
@@ -129,31 +131,36 @@ export default function CustomerApplicationForm() {
         return '0.0.0.0'; // Fallback IP
       };
 
+      const signaturePayload = {
+        applicationId: formData!.id,
+        signatureHash: signatureData.signatureHash,
+        signedDocumentUrl: signatureData.signedDocumentUrl,
+        ipAddress: getClientIP(),
+        userAgent: navigator.userAgent,
+      };
+
+      console.log('📤 Sending signature payload:', JSON.stringify(signaturePayload, null, 2));
+
       // Store the signature
       const response = await fetch('/api/signatures', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          applicationId: formData?.id,
-          signatureHash: signatureData.signatureHash,
-          signedDocumentUrl: signatureData.signedDocumentUrl,
-          ipAddress: getClientIP(),
-          userAgent: navigator.userAgent,
-        }),
+        body: JSON.stringify(signaturePayload),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Signature API error:', errorData);
+        console.error('❌ Signature API error:', errorData);
         throw new Error(`Failed to store signature: ${errorData.details || errorData.error}`);
       }
 
+      console.log('✅ Signature stored successfully');
       setSignatureData(signatureData);
       setSuccess(true);
     } catch (err) {
-      console.error('Error storing signature:', err);
+      console.error('❌ Error storing signature:', err);
       setError('Failed to store signature. Please try again.');
     }
   };
@@ -893,10 +900,17 @@ export default function CustomerApplicationForm() {
             </div>
           </form>
         ) : (
-          <DigitalSignature
-            applicationId={formData?.id || 0}
-            onSignatureComplete={handleSignatureComplete}
-          />
+          formData?.id ? (
+            <DigitalSignature
+              applicationId={formData.id}
+              onSignatureComplete={handleSignatureComplete}
+            />
+          ) : (
+            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading signature form...</p>
+            </div>
+          )
         )}
 
         {error && (
@@ -990,11 +1004,6 @@ export default function CustomerApplicationForm() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* AI Credit Analysis - Only shown after successful signature */}
-            <div className="mt-8">
-              <CreditAnalysis applicationId={formData?.id || 0} />
             </div>
           </div>
         )}

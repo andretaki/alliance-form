@@ -25,10 +25,14 @@ export default function DigitalSignature({ onSignatureComplete }: DigitalSignatu
     }
   };
 
-  const generateSignatureHash = (signatureData: string): string => {
-    // In a real implementation, you would use a proper cryptographic hash
-    // This is just a placeholder for demonstration
-    return btoa(signatureData);
+  const generateSignatureHash = async (signatureData: string): Promise<string> => {
+    // Create a proper SHA-256 hash of the signature data
+    const encoder = new TextEncoder();
+    const data = encoder.encode(signatureData);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
   };
 
   const generateSignedPDF = async () => {
@@ -83,7 +87,7 @@ export default function DigitalSignature({ onSignatureComplete }: DigitalSignatu
 
       // Get signature data
       const signatureData = signaturePadRef.current.toDataURL();
-      const signatureHash = generateSignatureHash(signatureData);
+      const signatureHash = await generateSignatureHash(signatureData);
 
       // Generate signed PDF
       const signedDocumentUrl = await generateSignedPDF();

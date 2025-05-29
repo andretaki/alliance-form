@@ -4,7 +4,7 @@ import Mailgun from 'mailgun.js';
 
 // Initialize Mailgun client with robust error handling
 const mailgun = new Mailgun(formData);
-let mg: Mailgun.default | null = null;
+let mg: any | null = null;
 
 // Robust environment variable validation for Mailgun
 if (process.env.NODE_ENV === 'production' && (!process.env.MAIL_API_KEY || !process.env.MAILGUN_DOMAIN)) {
@@ -165,30 +165,50 @@ export async function sendApplicationSummary(applicationData: ApplicationData) {
   
   if (openai) {
     try {
-      const prompt = `
-Analyze the following new customer credit application and provide a concise risk assessment (max 150 words).
-Focus on key risk indicators and suggest 1-2 immediate follow-up actions if any.
+      const prompt = `You are an aggressive, no-nonsense senior credit analyst for Alliance Chemical. Your job is to be THOROUGH and SKEPTICAL. Analyze this application like a detective looking for red flags, inconsistencies, and opportunities.
 
-Application Details:
-    Company Name: ${applicationData.legalEntityName}
-    DBA: ${applicationData.dba || 'N/A'}
-    Tax EIN: ${applicationData.taxEIN}
-    DUNS Number: ${applicationData.dunsNumber || 'N/A'}
-    Buyer Contact: ${applicationData.buyerNameEmail}
-    AP Contact: ${applicationData.accountsPayableNameEmail}
-    Trade Reference 1: ${applicationData.trade1Name || 'N/A'}
-    Trade Reference 2: ${applicationData.trade2Name || 'N/A'}
-    Trade Reference 3: ${applicationData.trade3Name || 'N/A'}
+APPLICATION DATA:
+Company: ${applicationData.legalEntityName} ${applicationData.dba ? `(DBA: ${applicationData.dba})` : ''}
+Tax EIN: ${applicationData.taxEIN}
+DUNS: ${applicationData.dunsNumber || 'NOT PROVIDED - RED FLAG'}
+Phone: ${applicationData.phoneNo}
+Buyer: ${applicationData.buyerNameEmail}
+AP Contact: ${applicationData.accountsPayableNameEmail}
+Billing: ${applicationData.billToAddress}, ${applicationData.billToCityStateZip}
+Shipping: ${applicationData.shipToAddress}, ${applicationData.shipToCityStateZip}
 
-    ---
-    Risk Assessment and Follow-up:
-      `;
+TRADE REFERENCES:
+1. ${applicationData.trade1Name || 'MISSING'} ${applicationData.trade1Name ? `| ${applicationData.trade1Email || 'NO EMAIL'} | ${applicationData.trade1Address || 'NO ADDRESS'}, ${applicationData.trade1CityStateZip || 'NO LOCATION'}` : ''}
+2. ${applicationData.trade2Name || 'MISSING'} ${applicationData.trade2Name ? `| ${applicationData.trade2Email || 'NO EMAIL'} | ${applicationData.trade2Address || 'NO ADDRESS'}, ${applicationData.trade2CityStateZip || 'NO LOCATION'}` : ''}
+3. ${applicationData.trade3Name || 'MISSING'} ${applicationData.trade3Name ? `| ${applicationData.trade3Email || 'NO EMAIL'} | ${applicationData.trade3Address || 'NO ADDRESS'}, ${applicationData.trade3CityStateZip || 'NO LOCATION'}` : ''}
+
+BE RUTHLESS IN YOUR ANALYSIS:
+1. RISK LEVEL: Low/Medium/High/EXTREME
+2. CREDIT DECISION: Approve/Conditional/DECLINE/Manual Review Required
+3. RECOMMENDED CREDIT LIMIT: Be conservative or deny if suspicious
+4. PAYMENT TERMS: COD for high risk, Net 15/30 for approved
+5. RED FLAGS: What looks suspicious, missing, or inconsistent?
+6. MISSING DATA PENALTIES: Dock points for incomplete references
+7. COMPANY LEGITIMACY ASSESSMENT: Does this look like a real business?
+8. REFERENCE QUALITY SCORE: Rate the trade references 1-10
+9. GEOGRAPHIC RISK: Any location-based concerns?
+10. IMMEDIATE ACTIONS: What needs to be done NOW before approval?
+
+SCORING CRITERIA:
+- Missing DUNS number: -20 points
+- Incomplete trade references: -10 points each
+- Suspicious email domains: -15 points
+- P.O. Box addresses: -10 points
+- Same billing/shipping address: +5 points
+- Professional email format: +10 points
+- Complete information: +15 points
+
+Be direct, skeptical, and don't sugar-coat anything. If it smells fishy, call it out. This is B2B chemical distribution - we need solid, reliable customers only.`;
 
       const completion = await openai.chat.completions.create({
-        model: "o3",
+        model: "o1",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 200,
-        temperature: 0.5,
+        max_completion_tokens: 1500,
       });
 
       aiAnalysisContent = completion.choices[0]?.message?.content || 'AI analysis returned no content.';

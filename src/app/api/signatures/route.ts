@@ -18,7 +18,9 @@ export async function POST(request: NextRequest) {
     let requestData: unknown;
     try {
       requestData = await request.json();
+      console.log('📥 Signatures API - Raw request data:', JSON.stringify(requestData, null, 2));
     } catch (error) {
+      console.error('❌ Failed to parse JSON in signatures API:', error);
       return NextResponse.json(
         { error: 'Invalid JSON in request body', details: 'Request body must be valid JSON' },
         { status: 400 }
@@ -26,8 +28,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate data using Zod schema
+    console.log('🔍 Validating signature data...');
     const validationResult = digitalSignatureSchema.safeParse(requestData);
     if (!validationResult.success) {
+      console.error('❌ Signature validation failed:', validationResult.error.issues);
       return NextResponse.json(
         { 
           error: 'Validation failed', 
@@ -39,6 +43,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    console.log('✅ Signature validation passed');
 
     const data: DigitalSignatureData = validationResult.data;
 
