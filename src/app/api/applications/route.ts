@@ -1,11 +1,46 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { customerApplications, tradeReferences } from '@/lib/schema';
 import { sendApplicationSummary } from '@/lib/email';
+import { customerApplicationSchema, type CustomerApplicationData } from '@/lib/validation';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
+    if (!db) {
+      console.error('Database connection is not available in /api/applications');
+      return NextResponse.json(
+        { error: 'Database connection not available. Service temporarily unavailable.' },
+        { status: 503 } // Service Unavailable
+      );
+    }
+
+    // Parse and validate request body
+    let requestData: unknown;
+    try {
+      requestData = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body', details: 'Request body must be valid JSON' },
+        { status: 400 }
+      );
+    }
+
+    // Validate data using Zod schema
+    const validationResult = customerApplicationSchema.safeParse(requestData);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { 
+          error: 'Validation failed', 
+          details: validationResult.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        },
+        { status: 400 }
+      );
+    }
+
+    const data: CustomerApplicationData = validationResult.data;
     
     // Insert the main application
     const [application] = await db.insert(customerApplications).values({
@@ -25,9 +60,15 @@ export async function POST(request: Request) {
       termsAgreed: data.termsAgreed,
     }).returning();
 
+    if (!application) {
+      throw new Error('Failed to create application record');
+    }
+
     // Insert trade references if provided
+    const tradeReferencesToInsert = [];
+    
     if (data.trade1Name) {
-      await db.insert(tradeReferences).values({
+      tradeReferencesToInsert.push({
         applicationId: application.id,
         name: data.trade1Name,
         faxNo: data.trade1FaxNo,
@@ -39,7 +80,7 @@ export async function POST(request: Request) {
     }
 
     if (data.trade2Name) {
-      await db.insert(tradeReferences).values({
+      tradeReferencesToInsert.push({
         applicationId: application.id,
         name: data.trade2Name,
         faxNo: data.trade2FaxNo,
@@ -51,7 +92,7 @@ export async function POST(request: Request) {
     }
 
     if (data.trade3Name) {
-      await db.insert(tradeReferences).values({
+      tradeReferencesToInsert.push({
         applicationId: application.id,
         name: data.trade3Name,
         faxNo: data.trade3FaxNo,
@@ -62,19 +103,58 @@ export async function POST(request: Request) {
       });
     }
 
-    // Send email summary
-    try {
-      await sendApplicationSummary({ ...data, id: application.id });
-    } catch (emailError) {
-      console.error('Error sending email:', emailError);
-      // Don't fail the entire request if email fails
+    // Insert all trade references at once if any exist
+    if (tradeReferencesToInsert.length > 0) {
+      await db.insert(tradeReferences).values(tradeReferencesToInsert);
     }
 
-    return NextResponse.json({ success: true, applicationId: application.id });
+    // Send email summary (async, don't wait for completion)
+    sendApplicationSummary({
+      id: application.id,
+      ...data
+    }).catch(error => {
+      console.error('Failed to send application summary email:', error);
+      // Don't fail the API request if email fails
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Application submitted successfully',
+      application: {
+        id: application.id,
+        legalEntityName: application.legalEntityName,
+        createdAt: application.createdAt,
+      },
+    }, { status: 201 });
+
   } catch (error) {
-    console.error('Error saving application:', error);
+    console.error('Error in /api/applications:', error);
+    
+    // Handle specific database errors
+    if (error instanceof Error) {
+      // Handle unique constraint violations
+      if (error.message.includes('unique constraint')) {
+        return NextResponse.json(
+          { error: 'Duplicate application', details: 'An application with this information already exists' },
+          { status: 409 }
+        );
+      }
+      
+      // Handle foreign key constraint violations
+      if (error.message.includes('foreign key constraint')) {
+        return NextResponse.json(
+          { error: 'Invalid reference', details: 'Referenced record does not exist' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Generic error response
     return NextResponse.json(
-      { error: 'Failed to save application' },
+      { 
+        error: 'Failed to submit application',
+        details: error instanceof Error ? error.message : 'Unknown error occurred'
+      },
       { status: 500 }
     );
   }

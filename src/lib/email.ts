@@ -1,26 +1,67 @@
 import OpenAI from 'openai';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
-import { Resend } from 'resend';
 
-// Initialize Mailgun
+// Initialize Mailgun client with robust error handling
 const mailgun = new Mailgun(formData);
-const mg = mailgun.client({
-  username: 'api',
-  key: process.env.MAIL_API_KEY!,
-});
+let mg: Mailgun.default | null = null;
 
-// Initialize OpenAI (optional - only if OPENAI_API_KEY is provided)
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-}) : null;
+// Robust environment variable validation for Mailgun
+if (process.env.NODE_ENV === 'production' && (!process.env.MAIL_API_KEY || !process.env.MAILGUN_DOMAIN)) {
+  const message = 'FATAL ERROR: Mailgun API key or domain not provided. Email functionality will be critically impaired in production.';
+  console.error(message);
+  throw new Error(message); // Fail fast in production
+} else if (!process.env.MAIL_API_KEY || !process.env.MAILGUN_DOMAIN) {
+  console.warn('Mailgun API key or domain not provided. Email functionality will be disabled.');
+}
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Mailgun client only if credentials are available
+if (process.env.MAIL_API_KEY && process.env.MAILGUN_DOMAIN) {
+  try {
+    mg = mailgun.client({
+      username: 'api',
+      key: process.env.MAIL_API_KEY,
+    });
+    console.log('Mailgun client initialized successfully');
+  } catch (error) {
+    const message = `Failed to initialize Mailgun client: ${error}`;
+    console.error(message);
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(message);
+    }
+  }
+}
 
-interface EmailData {
+// Initialize OpenAI (optional) with robust error handling
+let openai: OpenAI | null = null;
+if (process.env.OPENAI_API_KEY) {
+  try {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+    console.log('OpenAI client initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize OpenAI client:', error);
+    console.warn('AI analysis features will be disabled due to OpenAI initialization error.');
+  }
+} else {
+  console.warn('OPENAI_API_KEY not provided. AI analysis features will be disabled for applicable emails.');
+}
+
+// Validate critical email configuration in production
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.EMAIL_FORM) {
+    const message = 'FATAL ERROR: EMAIL_FORM environment variable is required in production for sending form submissions.';
+    console.error(message);
+    throw new Error(message);
+  }
+}
+
+interface EmailDataBase {
   to: string;
   subject: string;
   html: string;
+  text: string;
   from?: string;
 }
 
@@ -60,104 +101,109 @@ interface ApplicationData {
   termsAgreed?: boolean;
 }
 
-export async function sendEmail(data: EmailData) {
-  try {
-    const { data: result, error } = await resend.emails.send({
-      from: data.from || 'Alliance Chemical <noreply@alliancechemical.com>',
-      to: data.to,
-      subject: data.subject,
-      html: data.html,
-    });
+interface ShippingRequestData {
+  id?: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  company?: string;
+  shippingAddress: string;
+  addressLine2?: string;
+  city: string;
+  stateProvince: string;
+  postalCode: string;
+  country: string;
+  productDescription: string;
+  quantity: string;
+  estimatedValue: string;
+  orderRequest: string;
+  specialInstructions?: string;
+  shippingMethod: string;
+  customShippingMethod?: string;
+  urgency: string;
+  trackingRequired?: boolean;
+  insuranceRequired?: boolean;
+  purposeOfShipment?: string;
+  customPurpose?: string;
+  hsCode?: string;
+  countryOfOrigin?: string;
+  termsAgreed?: boolean;
+}
 
-    if (error) {
-      throw error;
+export async function sendEmail(data: EmailDataBase) {
+  if (!mg || !process.env.MAILGUN_DOMAIN) {
+    console.warn('Mailgun not configured. Skipping email send for:', data.subject);
+      return { success: false, message: 'Email service not configured' };
     }
 
-    return result;
+  try {
+    const messageData = {
+      from: data.from || `Alliance Chemical Forms <noreply@${process.env.MAILGUN_DOMAIN}>`,
+      to: data.to,
+      subject: data.subject,
+      text: data.text,
+      html: data.html,
+    };
+
+    const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, messageData);
+    console.log('Email sent successfully via Mailgun:', result);
+    return { success: true, result };
   } catch (error) {
-    console.error('Error sending email:', error);
-    throw error;
+    console.error('Error sending email via Mailgun:', error);
+    return { success: false, message: 'Failed to send email', error };
   }
 }
 
 export async function sendApplicationSummary(applicationData: ApplicationData) {
-  try {
-    let analysis = '';
-    
-    // Generate comprehensive analysis using OpenAI if available
-    if (openai) {
-      try {
-        const prompt = `Please provide a detailed analysis of this customer application, including:
-1. Company Overview
-2. Key Contact Information
-3. Business Operations Analysis
-4. Risk Assessment
-5. Recommendations for Follow-up
+  if (!process.env.EMAIL_FORM) {
+    console.warn('EMAIL_FORM environment variable not set. Cannot send application summary.');
+    return;
+  }
+
+  let aiAnalysisContent = 'AI analysis not performed (OpenAI not configured or error).';
+  
+  if (openai) {
+    try {
+      const prompt = `
+Analyze the following new customer credit application and provide a concise risk assessment (max 150 words).
+Focus on key risk indicators and suggest 1-2 immediate follow-up actions if any.
 
 Application Details:
-Company Name: ${applicationData.legalEntityName}
-DBA: ${applicationData.dba || 'N/A'}
-Tax EIN: ${applicationData.taxEIN}
-DUNS Number: ${applicationData.dunsNumber || 'N/A'}
-Phone: ${applicationData.phoneNo}
-Billing Address: ${applicationData.billToAddress}
-Billing City/State/Zip: ${applicationData.billToCityStateZip}
-Shipping Address: ${applicationData.shipToAddress}
-Shipping City/State/Zip: ${applicationData.shipToCityStateZip}
-Buyer Contact: ${applicationData.buyerNameEmail}
-AP Contact: ${applicationData.accountsPayableNameEmail}
-Invoice Email: ${applicationData.wantInvoicesEmailed ? applicationData.invoiceEmail : 'Not requested'}
+    Company Name: ${applicationData.legalEntityName}
+    DBA: ${applicationData.dba || 'N/A'}
+    Tax EIN: ${applicationData.taxEIN}
+    DUNS Number: ${applicationData.dunsNumber || 'N/A'}
+    Buyer Contact: ${applicationData.buyerNameEmail}
+    AP Contact: ${applicationData.accountsPayableNameEmail}
+    Trade Reference 1: ${applicationData.trade1Name || 'N/A'}
+    Trade Reference 2: ${applicationData.trade2Name || 'N/A'}
+    Trade Reference 3: ${applicationData.trade3Name || 'N/A'}
 
-Trade References:
-${applicationData.trade1Name ? `Reference 1: ${applicationData.trade1Name}
-Address: ${applicationData.trade1Address}
-Contact: ${applicationData.trade1Attn}
-Email: ${applicationData.trade1Email}
-Phone/Fax: ${applicationData.trade1FaxNo}` : 'No reference provided'}
+    ---
+    Risk Assessment and Follow-up:
+      `;
 
-${applicationData.trade2Name ? `Reference 2: ${applicationData.trade2Name}
-Address: ${applicationData.trade2Address}
-Contact: ${applicationData.trade2Attn}
-Email: ${applicationData.trade2Email}
-Phone/Fax: ${applicationData.trade2FaxNo}` : 'No reference provided'}
+      const completion = await openai.chat.completions.create({
+        model: "o3",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 200,
+        temperature: 0.5,
+      });
 
-${applicationData.trade3Name ? `Reference 3: ${applicationData.trade3Name}
-Address: ${applicationData.trade3Address}
-Contact: ${applicationData.trade3Attn}
-Email: ${applicationData.trade3Email}
-Phone/Fax: ${applicationData.trade3FaxNo}` : 'No reference provided'}`;
-
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4",
-          messages: [
-            {
-              role: "system",
-              content: "You are a business analyst specializing in customer credit applications and risk assessment for chemical companies."
-            },
-            {
-              role: "user",
-              content: prompt
-            }
-          ],
-          max_tokens: 1500,
-          temperature: 0.7,
-        });
-
-        analysis = completion.choices[0]?.message?.content || 'AI analysis unavailable';
-      } catch (aiError) {
-        console.error('Error generating AI analysis:', aiError);
-        analysis = 'AI analysis unavailable';
-      }
+      aiAnalysisContent = completion.choices[0]?.message?.content || 'AI analysis returned no content.';
+    } catch (aiError) {
+      console.error('Error generating AI analysis for application:', aiError);
+      aiAnalysisContent = 'Error during AI analysis generation.';
     }
+  }
 
-    // Send structured data to sales team
-    const salesMessageData = {
-      from: `FormWizard <FormWizard@${process.env.MAILGUN_DOMAIN}>`,
-      to: process.env.EMAIL_FORM!,
-      subject: `[New Customer Application] ${applicationData.legalEntityName} | EIN: ${applicationData.taxEIN}`,
-      text: `[CUSTOMER APPLICATION DATA]
-Timestamp: ${new Date().toISOString()}
-Application ID: ${applicationData.id || 'Pending'}
+  const subject = `[New Customer Application] ${applicationData.legalEntityName} (ID: ${applicationData.id || 'N/A'})`;
+  
+  const textBody = `
+New Customer Credit Application Received
+Application ID: ${applicationData.id || 'N/A'}
+Submission Date: ${new Date().toISOString()}
 
 [COMPANY INFORMATION]
 Legal Entity Name: ${applicationData.legalEntityName}
@@ -169,7 +215,8 @@ DUNS Number: ${applicationData.dunsNumber || 'N/A'}
 Phone: ${applicationData.phoneNo}
 Buyer Contact: ${applicationData.buyerNameEmail}
 AP Contact: ${applicationData.accountsPayableNameEmail}
-Invoice Email: ${applicationData.wantInvoicesEmailed ? applicationData.invoiceEmail : 'Not requested'}
+Invoice Email Preference: ${applicationData.wantInvoicesEmailed ? 'Yes' : 'No'}
+Invoice Email: ${applicationData.invoiceEmail || (applicationData.wantInvoicesEmailed ? 'Not Provided' : 'N/A')}
 
 [ADDRESSES]
 Billing Address:
@@ -181,120 +228,192 @@ ${applicationData.shipToAddress}
 ${applicationData.shipToCityStateZip}
 
 [TRADE REFERENCES]
-${applicationData.trade1Name ? `Reference 1:
-Company: ${applicationData.trade1Name}
-Address: ${applicationData.trade1Address}
-City/State/Zip: ${applicationData.trade1CityStateZip}
-Contact: ${applicationData.trade1Attn}
-Email: ${applicationData.trade1Email}
-Phone/Fax: ${applicationData.trade1FaxNo}
-` : 'No reference provided'}
+${[1, 2, 3].map(num => {
+  const name = (applicationData as any)[`trade${num}Name`];
+  if (!name) return `Reference ${num}: Not Provided`;
+  return `Reference ${num}:
+Company: ${name}
+Address: ${(applicationData as any)[`trade${num}Address`]}
+City/State/Zip: ${(applicationData as any)[`trade${num}CityStateZip`]}
+Contact: ${(applicationData as any)[`trade${num}Attn`]}
+Email: ${(applicationData as any)[`trade${num}Email`]}
+Phone/Fax: ${(applicationData as any)[`trade${num}FaxNo`]}`;
+}).join('\n\n')}
 
-${applicationData.trade2Name ? `Reference 2:
-Company: ${applicationData.trade2Name}
-Address: ${applicationData.trade2Address}
-City/State/Zip: ${applicationData.trade2CityStateZip}
-Contact: ${applicationData.trade2Attn}
-Email: ${applicationData.trade2Email}
-Phone/Fax: ${applicationData.trade2FaxNo}
-` : 'No reference provided'}
-
-${applicationData.trade3Name ? `Reference 3:
-Company: ${applicationData.trade3Name}
-Address: ${applicationData.trade3Address}
-City/State/Zip: ${applicationData.trade3CityStateZip}
-Contact: ${applicationData.trade3Attn}
-Email: ${applicationData.trade3Email}
-Phone/Fax: ${applicationData.trade3FaxNo}
-` : 'No reference provided'}
-
-[APPLICATION METADATA]
+[TERMS]
 Terms Agreed: ${applicationData.termsAgreed ? 'Yes' : 'No'}
+
+[AI ANALYSIS]
+${aiAnalysisContent}
+`;
+
+  const htmlBody = `
+<html>
+<body>
+  <h1>New Customer Credit Application: ${applicationData.legalEntityName}</h1>
+  <p><strong>Application ID:</strong> ${applicationData.id || 'N/A'}</p>
+  <p><strong>Submission Date:</strong> ${new Date().toISOString()}</p>
+
+  <h2>Company Information</h2>
+  <ul>
+    <li><strong>Legal Entity Name:</strong> ${applicationData.legalEntityName}</li>
+    <li><strong>DBA:</strong> ${applicationData.dba || 'N/A'}</li>
+    <li><strong>Tax EIN:</strong> ${applicationData.taxEIN}</li>
+    <li><strong>DUNS Number:</strong> ${applicationData.dunsNumber || 'N/A'}</li>
+  </ul>
+
+  <h2>Contact Information</h2>
+  <ul>
+    <li><strong>Phone:</strong> ${applicationData.phoneNo}</li>
+    <li><strong>Buyer Contact:</strong> ${applicationData.buyerNameEmail}</li>
+    <li><strong>AP Contact:</strong> ${applicationData.accountsPayableNameEmail}</li>
+    <li><strong>Invoice Email Preference:</strong> ${applicationData.wantInvoicesEmailed ? 'Yes' : 'No'}</li>
+    <li><strong>Invoice Email:</strong> ${applicationData.invoiceEmail || (applicationData.wantInvoicesEmailed ? 'Not Provided' : 'N/A')}</li>
+  </ul>
+
+  <h2>Addresses</h2>
+  <h3>Billing Address:</h3>
+  <p>${applicationData.billToAddress}<br>${applicationData.billToCityStateZip}</p>
+  <h3>Shipping Address:</h3>
+  <p>${applicationData.shipToAddress}<br>${applicationData.shipToCityStateZip}</p>
+
+  <h2>Trade References</h2>
+  ${[1, 2, 3].map(num => {
+    const name = (applicationData as any)[`trade${num}Name`];
+    if (!name) return `<p><strong>Reference ${num}:</strong> Not Provided</p>`;
+    return `<div style="margin-bottom: 1em; padding: 0.5em; border: 1px solid #eee;">
+      <h4>Reference ${num}</h4>
+      <p><strong>Company:</strong> ${name}<br>
+      <strong>Address:</strong> ${(applicationData as any)[`trade${num}Address`]}, ${(applicationData as any)[`trade${num}CityStateZip`]}<br>
+      <strong>Contact:</strong> ${(applicationData as any)[`trade${num}Attn`]}<br>
+      <strong>Email:</strong> ${(applicationData as any)[`trade${num}Email`]}<br>
+      <strong>Phone/Fax:</strong> ${(applicationData as any)[`trade${num}FaxNo`]}
+      </p></div>`;
+  }).join('')}
+
+  <h2>Terms</h2>
+  <p><strong>Terms Agreed:</strong> ${applicationData.termsAgreed ? 'Yes' : 'No'}</p>
+
+  <h2>AI Analysis</h2>
+  <div style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+    <p>${aiAnalysisContent.replace(/\n/g, '<br>')}</p>
+  </div>
+</body>
+</html>
+`;
+
+  await sendEmail({
+    to: process.env.EMAIL_FORM,
+    subject: subject,
+    text: textBody,
+    html: htmlBody,
+  });
+}
+
+export async function sendShippingRequestSummary(data: ShippingRequestData) {
+  if (!process.env.EMAIL_FORM) {
+    console.warn('EMAIL_FORM environment variable not set. Cannot send shipping request summary.');
+    return;
+  }
+
+  const subject = `[New Intl. Shipping Request] ${data.company || `${data.firstName} ${data.lastName}`} (ID: ${data.id || 'N/A'})`;
+  
+  const textBody = `
+New International Shipping Request Received
+Request ID: ${data.id || 'N/A'}
 Submission Date: ${new Date().toISOString()}
 
-${analysis ? `[AI ANALYSIS]\n${analysis}` : ''}
-`,
-      html: `
-        <h1>Customer Application Data</h1>
-        <div style="font-family: monospace; white-space: pre-wrap;">
-          <h2>Company Information</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Legal Entity Name:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.legalEntityName}</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>DBA:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.dba || 'N/A'}</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Tax EIN:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.taxEIN}</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>DUNS Number:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.dunsNumber || 'N/A'}</td></tr>
-          </table>
+[CONTACT INFORMATION]
+Name: ${data.firstName} ${data.lastName}
+Email: ${data.email}
+Phone: ${data.phone}
+Company: ${data.company || 'N/A'}
 
-          <h2>Contact Information</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Phone:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.phoneNo}</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Buyer Contact:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.buyerNameEmail}</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>AP Contact:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.accountsPayableNameEmail}</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Invoice Email:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.wantInvoicesEmailed ? applicationData.invoiceEmail : 'Not requested'}</td></tr>
-          </table>
+[SHIPPING ADDRESS]
+${data.shippingAddress}
+${data.addressLine2 || ''}
+${data.city}, ${data.stateProvince} ${data.postalCode}
+Country: ${data.country}
 
-          <h2>Addresses</h2>
-          <h3>Billing Address</h3>
-          <p>${applicationData.billToAddress}<br>${applicationData.billToCityStateZip}</p>
-          
-          <h3>Shipping Address</h3>
-          <p>${applicationData.shipToAddress}<br>${applicationData.shipToCityStateZip}</p>
+[ORDER DETAILS]
+Product Description: ${data.productDescription}
+Quantity: ${data.quantity}
+Estimated Value (USD): ${data.estimatedValue}
+Order Request Details: ${data.orderRequest}
+Special Instructions: ${data.specialInstructions || 'N/A'}
 
-          <h2>Trade References</h2>
-          
-          ${applicationData.trade1Name ? `<div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ddd;">
-            <h3>Reference 1</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Company:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade1Name}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Address:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade1Address}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>City/State/Zip:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade1CityStateZip}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Contact:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade1Attn}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Email:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade1Email}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Phone/Fax:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade1FaxNo}</td></tr>
-            </table>
-          </div>` : '<p>No reference 1 provided</p>'}
+[SHIPPING PREFERENCES]
+Method: ${data.shippingMethod} ${data.customShippingMethod ? `(Custom: ${data.customShippingMethod})` : ''}
+Urgency: ${data.urgency}
+Tracking Required: ${data.trackingRequired ? 'Yes' : 'No'}
+Insurance Required: ${data.insuranceRequired ? 'Yes' : 'No'}
 
-          ${applicationData.trade2Name ? `<div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ddd;">
-            <h3>Reference 2</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Company:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade2Name}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Address:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade2Address}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>City/State/Zip:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade2CityStateZip}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Contact:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade2Attn}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Email:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade2Email}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Phone/Fax:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade2FaxNo}</td></tr>
-            </table>
-          </div>` : ''}
+[CUSTOMS & DECLARATION]
+Purpose of Shipment: ${data.purposeOfShipment || 'N/A'} ${data.customPurpose ? `(Custom: ${data.customPurpose})` : ''}
+HS Code: ${data.hsCode || 'N/A'}
+Country of Origin: ${data.countryOfOrigin || 'N/A'}
 
-          ${applicationData.trade3Name ? `<div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ddd;">
-            <h3>Reference 3</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Company:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade3Name}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Address:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade3Address}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>City/State/Zip:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade3CityStateZip}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Contact:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade3Attn}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Email:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade3Email}</td></tr>
-              <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Phone/Fax:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.trade3FaxNo}</td></tr>
-            </table>
-          </div>` : ''}
+[TERMS]
+Terms Agreed: ${data.termsAgreed ? 'Yes' : 'No'}
+`;
 
-          <h2>Application Metadata</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Terms Agreed:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${applicationData.termsAgreed ? 'Yes' : 'No'}</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Submission Date:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${new Date().toISOString()}</td></tr>
-          </table>
+  const htmlBody = `
+<html>
+<body>
+  <h1>New International Shipping Request: ${data.company || `${data.firstName} ${data.lastName}`}</h1>
+  <p><strong>Request ID:</strong> ${data.id || 'N/A'}</p>
+  <p><strong>Submission Date:</strong> ${new Date().toISOString()}</p>
 
-          ${analysis ? `<h2>AI Analysis</h2><div style="white-space: pre-wrap; background: #f5f5f5; padding: 15px; border-radius: 5px;">${analysis}</div>` : ''}
-        </div>
-      `,
-    };
+  <h2>Contact Information</h2>
+  <ul>
+    <li><strong>Name:</strong> ${data.firstName} ${data.lastName}</li>
+    <li><strong>Email:</strong> ${data.email}</li>
+    <li><strong>Phone:</strong> ${data.phone}</li>
+    <li><strong>Company:</strong> ${data.company || 'N/A'}</li>
+  </ul>
 
-    // Send email to sales team
-    await mg.messages.create(process.env.MAILGUN_DOMAIN!, salesMessageData);
+  <h2>Shipping Address</h2>
+  <p>
+    ${data.shippingAddress}<br>
+    ${data.addressLine2 ? `${data.addressLine2}<br>` : ''}
+    ${data.city}, ${data.stateProvince} ${data.postalCode}<br>
+    <strong>Country:</strong> ${data.country}
+  </p>
 
-    return true;
-  } catch (error) {
-    console.error('Error sending application summary:', error);
-    throw error;
-  }
+  <h2>Order Details</h2>
+  <ul>
+    <li><strong>Product Description:</strong> ${data.productDescription}</li>
+    <li><strong>Quantity:</strong> ${data.quantity}</li>
+    <li><strong>Estimated Value (USD):</strong> ${data.estimatedValue}</li>
+    <li><strong>Order Request Details:</strong><br><pre style="white-space: pre-wrap; word-wrap: break-word;">${data.orderRequest}</pre></li>
+    <li><strong>Special Instructions:</strong> ${data.specialInstructions || 'N/A'}</li>
+  </ul>
+
+  <h2>Shipping Preferences</h2>
+  <ul>
+    <li><strong>Method:</strong> ${data.shippingMethod} ${data.customShippingMethod ? `(Custom: ${data.customShippingMethod})` : ''}</li>
+    <li><strong>Urgency:</strong> ${data.urgency}</li>
+    <li><strong>Tracking Required:</strong> ${data.trackingRequired ? 'Yes' : 'No'}</li>
+    <li><strong>Insurance Required:</strong> ${data.insuranceRequired ? 'Yes' : 'No'}</li>
+  </ul>
+
+  <h2>Customs & Declaration</h2>
+  <ul>
+    <li><strong>Purpose of Shipment:</strong> ${data.purposeOfShipment || 'N/A'} ${data.customPurpose ? `(Custom: ${data.customPurpose})` : ''}</li>
+    <li><strong>HS Code:</strong> ${data.hsCode || 'N/A'}</li>
+    <li><strong>Country of Origin:</strong> ${data.countryOfOrigin || 'N/A'}</li>
+  </ul>
+
+  <h2>Terms</h2>
+  <p><strong>Terms Agreed:</strong> ${data.termsAgreed ? 'Yes' : 'No'}</p>
+</body>
+</html>
+`;
+
+  await sendEmail({
+    to: process.env.EMAIL_FORM,
+    subject: subject,
+    text: textBody,
+    html: htmlBody,
+  });
 } 
