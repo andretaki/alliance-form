@@ -85,11 +85,11 @@ export const shippingRequestSchema = z.object({
 
 // Digital Signature Validation Schema
 export const digitalSignatureSchema = z.object({
-  signatureDataUrl: z.string().min(1, { message: "Signature is required" }),
+  signatureHash: z.string().min(1, { message: "Signature hash is required" }),
   applicationId: z.number().int().positive({ message: "Valid application ID is required" }),
-  signerName: z.string().min(1, { message: "Signer name is required" }),
-  signerEmail: z.string().email({ message: "Valid email is required" }),
-  signedAt: z.string().datetime({ message: "Valid timestamp is required" }),
+  ipAddress: z.string().min(1, { message: "IP address is required" }),
+  userAgent: z.string().min(1, { message: "User agent is required" }),
+  signedDocumentUrl: z.string().url({ message: "Valid document URL is required" }),
 });
 
 // File Upload Validation Schema (for form data)

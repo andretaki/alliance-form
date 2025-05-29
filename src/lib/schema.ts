@@ -23,10 +23,6 @@ export const customerApplications = pgTable('customer_applications', {
   termsAgreed: boolean('terms_agreed').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => {
-  return {
-    // Add any specific indexes here if needed
-  };
 }, { schema: schemaName });
 
 // Trade References table
@@ -41,24 +37,20 @@ export const tradeReferences = pgTable('trade_references', {
   attn: text('attn'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => {
-  return {
-    applicationIdIdx: index('idx_trade_references_application_id').on(table.applicationId),
-  };
 }, { schema: schemaName });
 
-// Terms and Conditions table
+// Terms table
 export const terms = pgTable('terms', {
   id: serial('id').primaryKey(),
   title: text('title').notNull(),
   content: text('content').notNull(),
-  version: text('version').notNull().default('1.0'),
-  orderIndex: integer('order_index').notNull().default(0),
-  isActive: boolean('is_active').notNull().default(true),
+  version: text('version').default('1.0').notNull(),
+  orderIndex: integer('order_index').default(0).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
   effectiveDate: timestamp('effective_date').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, undefined, { schema: schemaName });
+}, { schema: schemaName });
 
 // Digital Signatures table
 export const digitalSignatures = pgTable('digital_signatures', {
@@ -68,13 +60,22 @@ export const digitalSignatures = pgTable('digital_signatures', {
   ipAddress: text('ip_address').notNull(),
   userAgent: text('user_agent').notNull(),
   signedDocumentUrl: text('signed_document_url').notNull(),
-  signedAt: timestamp('signed_at').notNull().defaultNow(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, (table) => {
-  return {
-    applicationIdIdx: index('idx_digital_signatures_application_id').on(table.applicationId),
-  };
+  signedAt: timestamp('signed_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, { schema: schemaName });
+
+// Vendor Forms table
+export const vendorForms = pgTable('vendor_forms', {
+  id: serial('id').primaryKey(),
+  applicationId: integer('application_id').references(() => customerApplications.id),
+  fileName: text('file_name').notNull(),
+  fileUrl: text('file_url').notNull(),
+  fileType: text('file_type').notNull(),
+  fileSize: integer('file_size').notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, { schema: schemaName });
 
 // International Shipping Requests table
@@ -108,34 +109,4 @@ export const internationalShippingRequests = pgTable('international_shipping_req
   status: text('status').default('pending'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-}, (table) => {
-  return {
-    emailIdx: index('idx_international_shipping_requests_email').on(table.email),
-    statusIdx: index('idx_international_shipping_requests_status').on(table.status),
-  };
-}, { schema: schemaName });
-
-// Vendor Forms table
-export const vendorForms = pgTable('vendor_forms', {
-  id: serial('id').primaryKey(),
-  applicationId: integer('application_id').references(() => customerApplications.id),
-  fileName: text('file_name').notNull(),
-  fileUrl: text('file_url').notNull(),
-  fileType: text('file_type').notNull(),
-  fileSize: integer('file_size').notNull(),
-  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => {
-  return {
-    applicationIdIdx: index('idx_vendor_forms_application_id').on(table.applicationId),
-  };
-}, { schema: schemaName });
-
-// Add trigger for updating updated_at
-export const vendorFormsUpdatedAtTrigger = sql`
-  CREATE TRIGGER vendor_forms_updated_at
-  BEFORE UPDATE ON vendor_forms
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-`; 
+}, { schema: schemaName }); 
