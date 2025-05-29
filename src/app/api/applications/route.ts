@@ -3,7 +3,6 @@ import { db } from '@/lib/db';
 import { customerApplications, tradeReferences } from '@/lib/schema';
 import { sendApplicationSummary } from '@/lib/email';
 import { customerApplicationSchema, type CustomerApplicationData } from '@/lib/validation';
-import { sql } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   console.log('🚀 Applications API called');
@@ -23,31 +22,8 @@ export async function POST(request: NextRequest) {
     // Log environment info
     console.log('🌍 Environment info:', {
       NODE_ENV: process.env.NODE_ENV,
-      DATABASE_URL: process.env.DATABASE_URL ? `${process.env.DATABASE_URL.substring(0, 30)}...` : 'undefined',
-      POSTGRES_PRISMA_URL: process.env.POSTGRES_PRISMA_URL ? `${process.env.POSTGRES_PRISMA_URL.substring(0, 30)}...` : 'undefined'
+      DATABASE_URL: process.env.DATABASE_URL ? `${process.env.DATABASE_URL.substring(0, 50)}...` : 'undefined'
     });
-
-    // Test a simple query first to see what schema we're in
-    console.log('🔍 Testing database connection with simple query...');
-    try {
-      const testResult = await db.execute(sql`SELECT current_schema(), current_database()`);
-      console.log('📊 Current database context:', testResult.rows[0]);
-    } catch (testError) {
-      console.error('❌ Failed to get database context:', testError);
-    }
-
-    // Test schema awareness
-    console.log('🔍 Testing schema awareness...');
-    try {
-      const schemaTest = await db.execute(sql`
-        SELECT table_name, table_schema 
-        FROM information_schema.tables 
-        WHERE table_name = 'customer_applications'
-      `);
-      console.log('📋 Tables named customer_applications found:', schemaTest.rows);
-    } catch (schemaError) {
-      console.error('❌ Failed to query table schema info:', schemaError);
-    }
 
     // Parse and validate request body
     console.log('📥 Parsing request body...');
@@ -92,6 +68,11 @@ export async function POST(request: NextRequest) {
     
     // Insert the main application
     console.log('🔍 Attempting to insert into customer_applications table...');
+    console.log('📋 Table schema info:', {
+      tableName: 'customer_applications',
+      schemaName: 'alliance_chemical'
+    });
+    
     try {
       const [application] = await db.insert(customerApplications).values({
         legalEntityName: data.legalEntityName,
@@ -191,6 +172,16 @@ export async function POST(request: NextRequest) {
 
     } catch (insertError) {
       console.error('❌ Failed to insert application:', insertError);
+      
+      // Log the exact error details for debugging
+      if (insertError instanceof Error) {
+        console.error('Insert Error Details:', {
+          name: insertError.name,
+          message: insertError.message,
+          stack: insertError.stack
+        });
+      }
+      
       throw insertError; // Re-throw to be caught by outer catch block
     }
 
@@ -229,6 +220,10 @@ export async function POST(request: NextRequest) {
       // Handle relation not exists errors
       if (error.message.includes('relation') && error.message.includes('does not exist')) {
         console.error('🗄️ Database relation/table not found');
+        console.error('This suggests either:');
+        console.error('1. Tables are not in the expected schema (alliance_chemical)');
+        console.error('2. Database connection is pointing to wrong database');
+        console.error('3. Schema name is incorrect in table definitions');
         return NextResponse.json(
           { error: 'Database schema error', details: 'Required database tables not found. Please contact support.' },
           { status: 503 }
