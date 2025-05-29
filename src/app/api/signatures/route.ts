@@ -70,23 +70,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create signature hash (simple example - in production, use a more secure method)
-    const signatureHash = Buffer.from(
-      `${data.applicationId}-${data.signerEmail}-${data.signedAt}-${Date.now()}`
-    ).toString('base64');
-
-    // Generate a document URL (placeholder - in production, you'd generate a PDF and store it)
-    const signedDocumentUrl = `https://example.com/signed-documents/${signatureHash}.pdf`;
-
     // Insert the digital signature
     const [signature] = await db.insert(digitalSignatures).values({
       applicationId: data.applicationId,
-      signerName: data.signerName,
-      signerEmail: data.signerEmail,
-      signatureDataUrl: data.signatureDataUrl,
-      signatureHash: signatureHash,
-      signedDocumentUrl: signedDocumentUrl,
-      signedAt: new Date(data.signedAt),
+      signatureHash: data.signatureHash,
+      ipAddress: data.ipAddress,
+      userAgent: data.userAgent,
+      signedDocumentUrl: data.signedDocumentUrl,
     }).returning();
 
     if (!signature) {
@@ -99,9 +89,9 @@ export async function POST(request: NextRequest) {
       signature: {
         id: signature.id,
         applicationId: signature.applicationId,
-        signerName: signature.signerName,
-        signerEmail: signature.signerEmail,
         signatureHash: signature.signatureHash,
+        ipAddress: signature.ipAddress,
+        userAgent: signature.userAgent,
         signedDocumentUrl: signature.signedDocumentUrl,
         signedAt: signature.signedAt,
         createdAt: signature.createdAt,
@@ -126,6 +116,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: 'Invalid application reference', details: 'The specified application does not exist' },
           { status: 400 }
+        );
+      }
+
+      // Handle relation not exists errors
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        return NextResponse.json(
+          { error: 'Database schema error', details: 'Required database tables not found. Please contact support.' },
+          { status: 503 }
         );
       }
     }
