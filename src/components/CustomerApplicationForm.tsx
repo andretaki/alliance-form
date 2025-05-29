@@ -57,6 +57,7 @@ export default function CustomerApplicationForm() {
   const [showSignature, setShowSignature] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
   const [formData, setFormData] = useState<{ id: number } | null>(null);
   const [signatureData, setSignatureData] = useState<{
     signatureHash: string;
@@ -159,6 +160,7 @@ export default function CustomerApplicationForm() {
       console.log('✅ Signature stored successfully');
       setSignatureData(signatureData);
       setSuccess(true);
+      setIsComplete(true);
     } catch (err) {
       console.error('❌ Error storing signature:', err);
       setError('Failed to store signature. Please try again.');
@@ -899,6 +901,164 @@ export default function CustomerApplicationForm() {
               </button>
             </div>
           </form>
+        ) : isComplete ? (
+          // Application Complete Screen
+          <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-12 text-center max-w-2xl mx-auto">
+            {/* Success Animation */}
+            <div className="mb-8">
+              <div className="w-24 h-24 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-4">
+                Application Complete! ✨
+              </h1>
+              <p className="text-xl text-gray-700 mb-8">
+                Thank you for your submission. Your credit application has been successfully processed.
+              </p>
+            </div>
+
+            {/* Application Details */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 mb-8 border border-green-100">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">What Happens Next?</h2>
+              <div className="space-y-4 text-left">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <span className="text-white font-bold text-sm">1</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Application Review</h3>
+                    <p className="text-gray-600">Our credit team will review your application and trade references.</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <span className="text-white font-bold text-sm">2</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Credit Decision</h3>
+                    <p className="text-gray-600">You'll receive our credit decision within 2-3 business days.</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <span className="text-white font-bold text-sm">3</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Account Setup</h3>
+                    <p className="text-gray-600">Upon approval, we'll set up your account and provide ordering information.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Application Summary */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Application Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                <div>
+                  <p className="text-sm text-gray-600">Application ID</p>
+                  <p className="font-semibold text-gray-800">#{formData?.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Submission Date</p>
+                  <p className="font-semibold text-gray-800">{new Date().toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Digital Signature</p>
+                  <p className="font-semibold text-green-600">✓ Completed</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Status</p>
+                  <p className="font-semibold text-blue-600">Under Review</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Download Signed Document */}
+            {signatureData && (
+              <div className="mb-8">
+                <a
+                  href={signatureData.signedDocumentUrl}
+                  download="alliance-chemical-terms-signed.pdf"
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download Signed Document
+                </a>
+              </div>
+            )}
+
+            {/* Contact Information */}
+            <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-2xl p-6 border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800 mb-3">Questions?</h3>
+              <p className="text-gray-600 mb-4">
+                If you have any questions about your application or need assistance, please contact us:
+              </p>
+              <div className="space-y-2 text-sm text-gray-700">
+                <p><strong>Email:</strong> credit@alliancechemical.com</p>
+                <p><strong>Phone:</strong> (555) 123-4567</p>
+                <p><strong>Hours:</strong> Monday - Friday, 8:00 AM - 5:00 PM EST</p>
+              </div>
+            </div>
+
+            {/* Optional File Upload */}
+            <div className="mt-8 text-left">
+              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl p-6 border border-amber-100">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
+                  Upload Additional Documents (Optional)
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center w-full">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-amber-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-amber-50">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <svg className="w-8 h-8 mb-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <p className="mb-2 text-sm text-amber-700">
+                          <span className="font-semibold">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-amber-600">PDF, DOC, DOCX (MAX. 10MB)</p>
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        multiple
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleFileUpload}
+                        disabled={isUploading}
+                      />
+                    </label>
+                  </div>
+
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Uploaded Files:</h4>
+                      <ul className="space-y-2">
+                        {uploadedFiles.map((file, index) => (
+                          <li key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-amber-200">
+                            <span className="text-sm text-gray-600">{file.name}</span>
+                            <span className="text-sm text-green-600 font-medium">✓ Uploaded</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {isUploading && (
+                    <div className="flex items-center justify-center mt-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+                      <span className="ml-2 text-sm text-amber-700">Uploading...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           formData?.id ? (
             <DigitalSignature
@@ -916,95 +1076,6 @@ export default function CustomerApplicationForm() {
         {error && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-red-600">{error}</p>
-          </div>
-        )}
-
-        {success && (
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-green-600">
-              Your application has been submitted successfully! We will review it and contact you shortly.
-            </p>
-            {signatureData && (
-              <div className="mt-4">
-                <p className="text-green-600">
-                  Your digital signature has been recorded. You can download a copy of the signed document below.
-                </p>
-                <a
-                  href={signatureData.signedDocumentUrl}
-                  download="alliance-chemical-terms-signed.pdf"
-                  className="mt-2 inline-block bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                >
-                  Download Signed Document
-                </a>
-              </div>
-            )}
-
-            {/* File Upload Section - Only shown after successful signature */}
-            <div className="mt-8 bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Upload Additional Documents (Optional)</h2>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl p-6 border border-amber-100">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center w-full">
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-amber-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-amber-50">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <svg className="w-8 h-8 mb-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                          </svg>
-                          <p className="mb-2 text-sm text-amber-700">
-                            <span className="font-semibold">Click to upload</span> or drag and drop
-                          </p>
-                          <p className="text-xs text-amber-600">PDF, DOC, DOCX (MAX. 10MB)</p>
-                        </div>
-                        <input
-                          type="file"
-                          className="hidden"
-                          multiple
-                          accept=".pdf,.doc,.docx"
-                          onChange={handleFileUpload}
-                          disabled={isUploading}
-                        />
-                      </label>
-                    </div>
-
-                    {uploadedFiles.length > 0 && (
-                      <div className="mt-4">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Uploaded Files:</h3>
-                        <ul className="space-y-2">
-                          {uploadedFiles.map((file, index) => (
-                            <li key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-amber-200">
-                              <span className="text-sm text-gray-600">{file.name}</span>
-                              <span className="text-sm text-green-600 font-medium">✓ Uploaded</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {isUploading && (
-                      <div className="flex items-center justify-center mt-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
-                        <span className="ml-2 text-sm text-amber-700">Uploading...</span>
-                      </div>
-                    )}
-
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                      <p className="text-sm text-blue-800">
-                        <strong>Note:</strong> You can now upload any additional documents such as vendor forms, certifications, or other supporting materials for your application.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>
