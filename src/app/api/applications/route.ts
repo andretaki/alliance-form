@@ -4,6 +4,45 @@ import { customerApplications, tradeReferences } from '@/lib/schema';
 import { sendApplicationSummary } from '@/lib/email';
 import { customerApplicationSchema, type CustomerApplicationData } from '@/lib/validation';
 
+// GET method to fetch all applications for admin dashboard
+export async function GET() {
+  try {
+    if (!db) {
+      return NextResponse.json(
+        { error: 'Database connection not available' },
+        { status: 503 }
+      );
+    }
+
+    // Fetch all applications, ordered by creation date (newest first)
+    const applications = await db
+      .select({
+        id: customerApplications.id,
+        legalEntityName: customerApplications.legalEntityName,
+        taxEIN: customerApplications.taxEIN,
+        phoneNo: customerApplications.phoneNo,
+        buyerNameEmail: customerApplications.buyerNameEmail,
+        billToCityStateZip: customerApplications.billToCityStateZip,
+        termsAgreed: customerApplications.termsAgreed,
+        createdAt: customerApplications.createdAt,
+      })
+      .from(customerApplications)
+      .orderBy(customerApplications.createdAt);
+
+    return NextResponse.json({
+      success: true,
+      applications
+    });
+
+  } catch (error) {
+    console.error('Error fetching applications:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch applications' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   console.log('🚀 Applications API called');
   

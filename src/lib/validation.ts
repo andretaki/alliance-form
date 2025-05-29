@@ -89,7 +89,10 @@ export const digitalSignatureSchema = z.object({
   applicationId: z.number().int().positive({ message: "Valid application ID is required" }),
   ipAddress: z.string().min(1, { message: "IP address is required" }),
   userAgent: z.string().min(1, { message: "User agent is required" }),
-  signedDocumentUrl: z.string().url({ message: "Valid document URL is required" }),
+  signedDocumentUrl: z.string().min(1, { message: "Valid document URL is required" }).refine(
+    (url) => url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:'),
+    { message: "Document URL must be a valid URL, blob URL, or data URL" }
+  ),
 });
 
 // File Upload Validation Schema (for form data)

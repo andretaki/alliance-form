@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
 import DigitalSignature from './DigitalSignature';
+import CreditAnalysis from './CreditAnalysis';
 
 // Form validation schema
 const formSchema = z.object({
@@ -117,6 +118,17 @@ export default function CustomerApplicationForm() {
     signedDocumentUrl: string;
   }) => {
     try {
+      // Get a more appropriate IP address or use a fallback
+      const getClientIP = () => {
+        // In a real application, you might want to get this from the server
+        // For now, we'll use a fallback that works with the validation
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          return '127.0.0.1';
+        }
+        // For production, you might want to call an API to get the real IP
+        return '0.0.0.0'; // Fallback IP
+      };
+
       // Store the signature
       const response = await fetch('/api/signatures', {
         method: 'POST',
@@ -127,13 +139,15 @@ export default function CustomerApplicationForm() {
           applicationId: formData?.id,
           signatureHash: signatureData.signatureHash,
           signedDocumentUrl: signatureData.signedDocumentUrl,
-          ipAddress: window.location.hostname,
+          ipAddress: getClientIP(),
           userAgent: navigator.userAgent,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to store signature');
+        const errorData = await response.json();
+        console.error('Signature API error:', errorData);
+        throw new Error(`Failed to store signature: ${errorData.details || errorData.error}`);
       }
 
       setSignatureData(signatureData);
@@ -148,26 +162,35 @@ export default function CustomerApplicationForm() {
     const files = e.target.files;
     if (!files) return;
 
+    // Check if we have an application ID
+    if (!formData?.id) {
+      setError('Please submit your application first before uploading files.');
+      return;
+    }
+
     setIsUploading(true);
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const formData = new FormData();
-        formData.append('file', file);
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', file);
+        uploadFormData.append('applicationId', formData.id.toString());
 
         const response = await fetch('/api/upload', {
           method: 'POST',
-          body: formData,
+          body: uploadFormData,
         });
 
         if (!response.ok) {
-          throw new Error('Failed to upload file');
+          const errorData = await response.json();
+          console.error('Upload API error:', errorData);
+          throw new Error(`Failed to upload file: ${errorData.details || errorData.error}`);
         }
 
         const data = await response.json();
         const newFile = {
           name: file.name,
-          url: data.url
+          url: data.vendorForm?.fileUrl || data.url || '#'
         };
 
         setUploadedFiles(prev => [...prev, newFile]);
@@ -548,74 +571,6 @@ export default function CustomerApplicationForm() {
               </div>
             </div>
 
-            {/* Vendor Forms Section */}
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Vendor Forms</h2>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl p-6 border border-amber-100">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center w-full">
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-amber-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-amber-50">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <svg className="w-8 h-8 mb-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                          </svg>
-                          <p className="mb-2 text-sm text-amber-700">
-                            <span className="font-semibold">Click to upload</span> or drag and drop
-                          </p>
-                          <p className="text-xs text-amber-600">PDF, DOC, DOCX (MAX. 10MB)</p>
-                        </div>
-                        <input
-                          type="file"
-                          className="hidden"
-                          multiple
-                          accept=".pdf,.doc,.docx"
-                          onChange={handleFileUpload}
-                          disabled={isUploading}
-                        />
-                      </label>
-                    </div>
-
-                    {uploadedFiles.length > 0 && (
-                      <div className="mt-4">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Uploaded Files:</h3>
-                        <ul className="space-y-2">
-                          {uploadedFiles.map((file, index) => (
-                            <li key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-amber-200">
-                              <span className="text-sm text-gray-600">{file.name}</span>
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-amber-600 hover:text-amber-700 text-sm font-medium"
-                              >
-                                View
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {isUploading && (
-                      <div className="flex items-center justify-center mt-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
-                        <span className="ml-2 text-sm text-amber-700">Uploading...</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Trade References Section */}
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
               <div className="flex items-center mb-6">
@@ -969,6 +924,78 @@ export default function CustomerApplicationForm() {
                 </a>
               </div>
             )}
+
+            {/* File Upload Section - Only shown after successful signature */}
+            <div className="mt-8 bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Upload Additional Documents (Optional)</h2>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl p-6 border border-amber-100">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center w-full">
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-amber-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-amber-50">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <svg className="w-8 h-8 mb-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <p className="mb-2 text-sm text-amber-700">
+                            <span className="font-semibold">Click to upload</span> or drag and drop
+                          </p>
+                          <p className="text-xs text-amber-600">PDF, DOC, DOCX (MAX. 10MB)</p>
+                        </div>
+                        <input
+                          type="file"
+                          className="hidden"
+                          multiple
+                          accept=".pdf,.doc,.docx"
+                          onChange={handleFileUpload}
+                          disabled={isUploading}
+                        />
+                      </label>
+                    </div>
+
+                    {uploadedFiles.length > 0 && (
+                      <div className="mt-4">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Uploaded Files:</h3>
+                        <ul className="space-y-2">
+                          {uploadedFiles.map((file, index) => (
+                            <li key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-amber-200">
+                              <span className="text-sm text-gray-600">{file.name}</span>
+                              <span className="text-sm text-green-600 font-medium">✓ Uploaded</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {isUploading && (
+                      <div className="flex items-center justify-center mt-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+                        <span className="ml-2 text-sm text-amber-700">Uploading...</span>
+                      </div>
+                    )}
+
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        <strong>Note:</strong> You can now upload any additional documents such as vendor forms, certifications, or other supporting materials for your application.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Credit Analysis - Only shown after successful signature */}
+            <div className="mt-8">
+              <CreditAnalysis applicationId={formData?.id || 0} />
+            </div>
           </div>
         )}
       </div>
