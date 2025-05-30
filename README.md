@@ -74,7 +74,7 @@ The system includes **automated AI credit analysis** for every credit applicatio
 
 ### AI Analysis Process:
 1. 📝 Customer submits application
-2. 🤖 **o1 model analyzes all application data**
-3. 📧 **Comprehensive credit report, including AI insights from the gpt-4o model, emailed to Alliance Chemical**
+2. 🤖 **o3 model analyzes all application data with advanced reasoning**
+3. 📧 **Comprehensive credit report, including AI insights from the o3 model, emailed to Alliance Chemical**
 
-The AI provides thorough B2B credit evaluation with decision recommendations, credit limits, payment terms, and risk levels.
+The AI provides thorough B2B credit evaluation with decision recommendations, credit limits, payment terms, and risk levels using OpenAI's most advanced reasoning model.

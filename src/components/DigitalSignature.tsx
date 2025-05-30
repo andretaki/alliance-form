@@ -42,16 +42,102 @@ export default function DigitalSignature({ onSignatureComplete }: DigitalSignatu
       // Create PDF
       const pdf = new jsPDF();
       
-      // Capture terms content
-      const termsCanvas = await html2canvas(termsRef.current);
-      const termsImgData = termsCanvas.toDataURL('image/png');
+      // Create a temporary clone of the terms content without height restrictions
+      // This ensures we capture the complete content, not just the visible portion
+      const originalTermsElement = termsRef.current;
+      const tempContainer = document.createElement('div');
+      tempContainer.innerHTML = originalTermsElement.innerHTML;
       
-      // Add terms to PDF
-      pdf.addImage(termsImgData, 'PNG', 10, 10, 190, 0);
+      // Apply the same styling but remove height/overflow restrictions
+      tempContainer.style.cssText = `
+        width: ${originalTermsElement.offsetWidth}px;
+        padding: 24px;
+        background: linear-gradient(to bottom right, rgb(249, 250, 251), white);
+        border-radius: 16px;
+        border: 1px solid rgb(229, 231, 235);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+        visibility: hidden;
+      `;
       
-      // Capture signature
-      const signatureData = signaturePadRef.current.toDataURL();
-      pdf.addImage(signatureData, 'PNG', 10, pdf.internal.pageSize.height - 50, 100, 30);
+      // Add to document temporarily
+      document.body.appendChild(tempContainer);
+      
+      try {
+        // Capture the complete terms content
+        const termsCanvas = await html2canvas(tempContainer, {
+          useCORS: true,
+          allowTaint: true,
+          scale: 2, // Higher scale for better quality
+          height: tempContainer.scrollHeight,
+          windowHeight: tempContainer.scrollHeight
+        });
+        const termsImgData = termsCanvas.toDataURL('image/png');
+        
+        // Calculate if we need multiple pages
+        const pageHeight = pdf.internal.pageSize.height;
+        const imgHeight = (termsCanvas.height * 190) / termsCanvas.width;
+        const remainingHeight = pageHeight - 80; // Leave space for signature and timestamp
+        
+        if (imgHeight > remainingHeight) {
+          // Split content across multiple pages if needed
+          const imgWidth = 190;
+          const ratio = termsCanvas.width / termsCanvas.height;
+          let currentY = 10;
+          let sourceY = 0;
+          const sourceHeight = termsCanvas.height;
+          
+          while (sourceY < sourceHeight) {
+            const pageRemainingHeight = pageHeight - currentY - 80; // Leave space for signature
+            const sectionHeight = Math.min(pageRemainingHeight, (sourceHeight - sourceY) * imgWidth / termsCanvas.width);
+            const sourceSectionHeight = (sectionHeight * termsCanvas.width) / imgWidth;
+            
+            // Create a canvas for this section
+            const sectionCanvas = document.createElement('canvas');
+            sectionCanvas.width = termsCanvas.width;
+            sectionCanvas.height = sourceSectionHeight;
+            const sectionCtx = sectionCanvas.getContext('2d');
+            
+            if (sectionCtx) {
+              sectionCtx.drawImage(
+                termsCanvas, 
+                0, sourceY, termsCanvas.width, sourceSectionHeight,
+                0, 0, termsCanvas.width, sourceSectionHeight
+              );
+              
+              const sectionImgData = sectionCanvas.toDataURL('image/png');
+              pdf.addImage(sectionImgData, 'PNG', 10, currentY, imgWidth, sectionHeight);
+            }
+            
+            sourceY += sourceSectionHeight;
+            
+            // Add new page if there's more content
+            if (sourceY < sourceHeight) {
+              pdf.addPage();
+              currentY = 10;
+            } else {
+              currentY += sectionHeight + 10;
+            }
+          }
+        } else {
+          // Single page - add the complete terms image
+          pdf.addImage(termsImgData, 'PNG', 10, 10, 190, imgHeight);
+        }
+        
+        // Add signature on the last page
+        const signatureData = signaturePadRef.current.toDataURL();
+        pdf.addImage(signatureData, 'PNG', 10, pdf.internal.pageSize.height - 50, 100, 30);
+        
+        // Add timestamp
+        const timestamp = new Date().toISOString();
+        pdf.text(`Signed on: ${timestamp}`, 10, pdf.internal.pageSize.height - 30);
+        
+      } finally {
+        // Clean up the temporary element
+        document.body.removeChild(tempContainer);
+      }
       
       // Add metadata
       pdf.setProperties({
@@ -61,10 +147,6 @@ export default function DigitalSignature({ onSignatureComplete }: DigitalSignatu
         keywords: 'terms, conditions, signature, legal',
         creator: 'Alliance Chemical Digital Signature System'
       });
-
-      // Add timestamp and IP (in a real implementation, this would be server-side)
-      const timestamp = new Date().toISOString();
-      pdf.text(`Signed on: ${timestamp}`, 10, pdf.internal.pageSize.height - 30);
       
       // Save PDF
       const pdfBlob = pdf.output('blob');

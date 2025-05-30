@@ -95,7 +95,7 @@ export default function CreditAnalysis({ applicationId }: CreditAnalysisProps) {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">AI Credit Analysis</h2>
-            <p className="text-gray-600">Powered by OpenAI</p>
+            <p className="text-gray-600">Powered by OpenAI o3</p>
           </div>
         </div>
         

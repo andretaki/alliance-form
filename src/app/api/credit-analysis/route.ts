@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       })).filter(ref => ref.name) // Only include references with names
     };
 
-    // Call OpenAI GPT-4 mini for credit analysis
+    // Call OpenAI o3 for enhanced credit analysis
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'o3',
         messages: [
           {
             role: 'system',
@@ -161,7 +161,7 @@ Provide your analysis in the following JSON format:
       applicationId,
       analysis,
       analyzedAt: new Date().toISOString(),
-      model: 'gpt-4o'
+      model: 'o3'
     };
 
     return NextResponse.json({
