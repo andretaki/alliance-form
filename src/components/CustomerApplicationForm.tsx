@@ -13,38 +13,89 @@ const formSchema = z.object({
   taxEIN: z.string().min(1, { message: "Tax EIN is required" }),
   dunsNumber: z.string().optional(),
   phoneNo: z.string().min(1, { message: "Phone Number is required" }),
+  
+  // Enhanced Contact Information
+  primaryContactName: z.string().min(1, { message: "Primary contact name is required" }),
+  primaryContactTitle: z.string().optional(),
+  primaryContactEmail: z.string().email({ message: "Valid email is required" }),
+  
+  // Additional Authorized Purchasers
+  hasAdditionalPurchasers: z.boolean().optional(),
+  additionalPurchasers: z.array(z.object({
+    name: z.string().min(1, "Name is required"),
+    title: z.string().optional(),
+    email: z.string().email("Valid email is required"),
+    phone: z.string().optional()
+  })).optional(),
+  
+  // Enhanced Business Information
+  industry: z.string().min(1, { message: "Industry is required" }),
+  companyType: z.string().min(1, { message: "Company type is required" }),
+  numberOfEmployees: z.string().min(1, { message: "Number of employees is required" }),
+  yearsSinceIncorporation: z.string().min(1, { message: "Years since incorporation is required" }),
+  stateIncorporated: z.string().min(1, { message: "State of incorporation is required" }),
+  companyValuation: z.string().optional(),
+  businessWebsite: z.string().optional(),
+  
   billToAddress: z.string().min(1, { message: "Billing Address is required" }),
   billToCityStateZip: z.string().min(1, { message: "Billing City, State, Zip is required" }),
   shipToAddress: z.string().min(1, { message: "Shipping Address is required" }),
   shipToCityStateZip: z.string().min(1, { message: "Shipping City, State, Zip is required" }),
+  
+  // Enhanced Credit Terms
+  requestedCreditAmount: z.number().min(1000, { message: "Minimum credit amount is $1,000" }),
+  isTaxExempt: z.boolean().optional(),
+  usesPaymentPortal: z.boolean().optional(),
+  
   buyerNameEmail: z.string().min(1, { message: "Buyer Name/Email is required" }),
   accountsPayableNameEmail: z.string().min(1, { message: "Accounts Payable Name/Email is required" }),
   wantInvoicesEmailed: z.boolean().optional(),
-  invoiceEmail: z.string().optional(),
+  invoiceEmail: z.string().email().optional(),
+  
+  // Enhanced References with upload options
+  referenceUploadMethod: z.enum(['upload', 'manual']).default('manual'),
+  
+  // Bank Reference
+  bankName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankContactName: z.string().optional(),
+  bankContactPhone: z.string().optional(),
+  bankContactEmail: z.string().optional(),
+  
   // Vendor Forms
   vendorForms: z.array(z.object({
     name: z.string(),
     url: z.string()
   })).optional(),
-  // References
+  
+  // Trade References (enhanced)
   trade1Name: z.string().optional(),
   trade1FaxNo: z.string().optional(),
   trade1Address: z.string().optional(),
   trade1Email: z.string().optional(),
   trade1CityStateZip: z.string().optional(),
   trade1Attn: z.string().optional(),
+  trade1Phone: z.string().optional(),
+  
   trade2Name: z.string().optional(),
   trade2FaxNo: z.string().optional(),
   trade2Address: z.string().optional(),
   trade2Email: z.string().optional(),
   trade2CityStateZip: z.string().optional(),
   trade2Attn: z.string().optional(),
+  trade2Phone: z.string().optional(),
+  
   trade3Name: z.string().optional(),
   trade3FaxNo: z.string().optional(),
   trade3Address: z.string().optional(),
   trade3Email: z.string().optional(),
   trade3CityStateZip: z.string().optional(),
   trade3Attn: z.string().optional(),
+  trade3Phone: z.string().optional(),
+  
+  // Business Description
+  businessDescription: z.string().min(1, { message: "Please describe your business" }),
+  
   // Terms and conditions agreement
   termsAgreed: z.boolean().refine(val => val === true, {
     message: "You must agree to the terms and conditions"
@@ -65,6 +116,9 @@ export default function CustomerApplicationForm() {
   } | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; url: string }[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [showAdditionalPurchasers, setShowAdditionalPurchasers] = useState(false);
+  const [additionalPurchasers, setAdditionalPurchasers] = useState([{ name: '', title: '', email: '', phone: '' }]);
+  
   const { 
     register, 
     handleSubmit, 
@@ -76,11 +130,66 @@ export default function CustomerApplicationForm() {
     defaultValues: {
       wantInvoicesEmailed: false,
       termsAgreed: false,
-      vendorForms: []
+      vendorForms: [],
+      hasAdditionalPurchasers: false,
+      additionalPurchasers: [],
+      isTaxExempt: false,
+      usesPaymentPortal: false,
+      referenceUploadMethod: 'manual' as const
     }
   });
-  const wantInvoicesEmailed = watch("wantInvoicesEmailed");
   
+  const wantInvoicesEmailed = watch("wantInvoicesEmailed");
+  const referenceUploadMethod = watch("referenceUploadMethod");
+  
+  // Industry options
+  const industries = [
+    'Manufacturing', 'Healthcare', 'Education', 'Research & Development',
+    'Automotive', 'Electronics', 'Food & Beverage', 'Pharmaceuticals',
+    'Chemical Processing', 'Environmental Services', 'Agriculture', 'Other'
+  ];
+  
+  // Company type options
+  const companyTypes = [
+    'Corporation', 'LLC', 'Partnership', 'Sole Proprietorship', 
+    'Non-Profit', 'Government Entity', 'Other'
+  ];
+  
+  // Employee count options
+  const employeeCounts = [
+    '1-10', '11-50', '51-100', '101-500', '501-1000', '1000+'
+  ];
+  
+  // Years since incorporation options
+  const incorporationYears = [
+    'Less than 1 year', '1-2 years', '3-5 years', '6-10 years', 
+    '11-20 years', 'More than 20 years'
+  ];
+  
+  // Company valuation ranges
+  const valuationRanges = [
+    'Under $1M', '$1M - $5M', '$5M - $10M', '$10M - $50M', 
+    '$50M - $100M', 'Over $100M', 'Prefer not to disclose'
+  ];
+  
+  // US States
+  const states = [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+  ];
+
+  const addAdditionalPurchaser = () => {
+    setAdditionalPurchasers([...additionalPurchasers, { name: '', title: '', email: '', phone: '' }]);
+  };
+
+  const removeAdditionalPurchaser = (index: number) => {
+    const updated = additionalPurchasers.filter((_, i) => i !== index);
+    setAdditionalPurchasers(updated);
+  };
+
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
@@ -308,6 +417,136 @@ export default function CustomerApplicationForm() {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
+                    Industry *
+                  </label>
+                  <select
+                    {...register("industry")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                  >
+                    <option value="">Select Industry</option>
+                    {industries.map((industry) => (
+                      <option key={industry} value={industry}>{industry}</option>
+                    ))}
+                  </select>
+                  {errors.industry && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.industry.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Company Type *
+                  </label>
+                  <select
+                    {...register("companyType")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                  >
+                    <option value="">Select Company Type</option>
+                    {companyTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                  {errors.companyType && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.companyType.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Number of Employees *
+                  </label>
+                  <select
+                    {...register("numberOfEmployees")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                  >
+                    <option value="">Select Number of Employees</option>
+                    {employeeCounts.map((count) => (
+                      <option key={count} value={count}>{count}</option>
+                    ))}
+                  </select>
+                  {errors.numberOfEmployees && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.numberOfEmployees.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Years Since Incorporation *
+                  </label>
+                  <select
+                    {...register("yearsSinceIncorporation")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                  >
+                    <option value="">Select Years Since Incorporation</option>
+                    {incorporationYears.map((years) => (
+                      <option key={years} value={years}>{years}</option>
+                    ))}
+                  </select>
+                  {errors.yearsSinceIncorporation && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.yearsSinceIncorporation.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    State Incorporated *
+                  </label>
+                  <select
+                    {...register("stateIncorporated")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                  >
+                    <option value="">Select State</option>
+                    {states.map((state) => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                  {errors.stateIncorporated && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.stateIncorporated.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Company Valuation
+                  </label>
+                  <select
+                    {...register("companyValuation")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                  >
+                    <option value="">Select Valuation Range</option>
+                    {valuationRanges.map((range) => (
+                      <option key={range} value={range}>{range}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
                     Tax EIN *
                   </label>
                   <input
@@ -338,7 +577,19 @@ export default function CustomerApplicationForm() {
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Business Website
+                  </label>
+                  <input
+                    type="url"
+                    {...register("businessWebsite")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="https://www.example.com"
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
                     Phone Number *
                   </label>
@@ -357,152 +608,53 @@ export default function CustomerApplicationForm() {
                     </p>
                   )}
                 </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Business Description *
+                  </label>
+                  <textarea
+                    {...register("businessDescription")}
+                    rows={4}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="Tell us about your business and why you're interested in our products"
+                  />
+                  {errors.businessDescription && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.businessDescription.message}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* W9 Download Section */}
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-rose-500 rounded-xl flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            {/* PDF Download Option */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Prefer PDF?</h3>
+                  <p className="text-gray-600">Download, complete, and email the PDF version of this form to sales@alliancechemical.com</p>
+                </div>
+                <a
+                  href="/Alliance Chemical Credit Applicaiton.pdf"
+                  download="Alliance-Chemical-Credit-Application.pdf"
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Required Documents</h2>
-              </div>
-              
-              <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-2xl p-6 border border-red-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">W-9 Form</h3>
-                    <p className="text-gray-600">Download our W-9 form for tax purposes</p>
-                  </div>
-                  <a
-                    href="/W9-2025.pdf"
-                    download="Alliance-Chemical-W9-2025.pdf"
-                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-rose-600 text-white font-semibold rounded-xl hover:from-red-700 hover:to-rose-700 focus:outline-none focus:ring-2 focus:ring-red-500/50 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-                  >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download W-9
-                  </a>
-                </div>
+                  Download PDF
+                </a>
               </div>
             </div>
 
-            {/* Billing Address Section */}
+            {/* Enhanced Contact Information */}
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
               <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Billing Address</h2>
-              </div>
-              
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Bill To Address *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("billToAddress")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="Street address"
-                  />
-                  {errors.billToAddress && (
-                    <p className="text-red-500 text-sm flex items-center mt-1">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {errors.billToAddress.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    City, State, Zip *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("billToCityStateZip")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="City, State ZIP"
-                  />
-                  {errors.billToCityStateZip && (
-                    <p className="text-red-500 text-sm flex items-center mt-1">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {errors.billToCityStateZip.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Shipping Address Section */}
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Shipping Address</h2>
-              </div>
-              
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Ship To Address *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("shipToAddress")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="Street address"
-                  />
-                  {errors.shipToAddress && (
-                    <p className="text-red-500 text-sm flex items-center mt-1">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {errors.shipToAddress.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    City, State, Zip *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("shipToCityStateZip")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="City, State ZIP"
-                  />
-                  {errors.shipToCityStateZip && (
-                    <p className="text-red-500 text-sm flex items-center mt-1">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {errors.shipToCityStateZip.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Information Section */}
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center mr-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mr-4">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
@@ -510,369 +662,507 @@ export default function CustomerApplicationForm() {
                 <h2 className="text-2xl font-bold text-gray-800">Contact Information</h2>
               </div>
               
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Buyer Name/Email *
+                    Primary Contact Name *
                   </label>
                   <input
                     type="text"
-                    {...register("buyerNameEmail")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="John Doe / john@company.com"
+                    {...register("primaryContactName")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="First and Last Name"
                   />
-                  {errors.buyerNameEmail && (
+                  {errors.primaryContactName && (
                     <p className="text-red-500 text-sm flex items-center mt-1">
                       <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
-                      {errors.buyerNameEmail.message}
+                      {errors.primaryContactName.message}
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Accounts Payable Name/Email *
+                    Position/Title
                   </label>
                   <input
                     type="text"
-                    {...register("accountsPayableNameEmail")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="Jane Smith / ap@company.com"
+                    {...register("primaryContactTitle")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="e.g., Procurement Manager"
                   />
-                  {errors.accountsPayableNameEmail && (
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    {...register("primaryContactEmail")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="contact@company.com"
+                  />
+                  {errors.primaryContactEmail && (
                     <p className="text-red-500 text-sm flex items-center mt-1">
                       <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
-                      {errors.accountsPayableNameEmail.message}
+                      {errors.primaryContactEmail.message}
                     </p>
                   )}
                 </div>
-
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      {...register("wantInvoicesEmailed")}
-                      className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label className="text-sm font-semibold text-gray-700">
-                      Do you want your invoices emailed?
-                    </label>
-                  </div>
-
-                  {wantInvoicesEmailed && (
-                    <div className="mt-4 space-y-2">
-                      <label className="block text-sm font-semibold text-gray-700">
-                        Invoice Email Address
-                      </label>
-                      <input
-                        type="email"
-                        {...register("invoiceEmail")}
-                        className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                        placeholder="invoices@company.com"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Trade References Section */}
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Trade References</h2>
-              </div>
-              
-              {/* Reference 1 */}
-              <div className="mb-8 p-6 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-2xl border border-cyan-100">
-                <h3 className="text-lg font-semibold mb-4 text-cyan-800">Reference 1</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Company Name</label>
-                    <input
-                      type="text"
-                      {...register("trade1Name")}
-                      className="w-full px-4 py-3 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Company name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Fax No</label>
-                    <input
-                      type="text"
-                      {...register("trade1FaxNo")}
-                      className="w-full px-4 py-3 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Fax number"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Address</label>
-                    <input
-                      type="text"
-                      {...register("trade1Address")}
-                      className="w-full px-4 py-3 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Street address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Email</label>
-                    <input
-                      type="email"
-                      {...register("trade1Email")}
-                      className="w-full px-4 py-3 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Email address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">City, State, Zip</label>
-                    <input
-                      type="text"
-                      {...register("trade1CityStateZip")}
-                      className="w-full px-4 py-3 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
-                      placeholder="City, State ZIP"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Attention</label>
-                    <input
-                      type="text"
-                      {...register("trade1Attn")}
-                      className="w-full px-4 py-3 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Contact person"
-                    />
-                  </div>
-                </div>
               </div>
 
-              {/* Reference 2 */}
-              <div className="mb-8 p-6 bg-gradient-to-r from-teal-50 to-green-50 rounded-2xl border border-teal-100">
-                <h3 className="text-lg font-semibold mb-4 text-teal-800">Reference 2</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Company Name</label>
-                    <input
-                      type="text"
-                      {...register("trade2Name")}
-                      className="w-full px-4 py-3 bg-white border border-teal-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Company name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Fax No</label>
-                    <input
-                      type="text"
-                      {...register("trade2FaxNo")}
-                      className="w-full px-4 py-3 bg-white border border-teal-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Fax number"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Address</label>
-                    <input
-                      type="text"
-                      {...register("trade2Address")}
-                      className="w-full px-4 py-3 bg-white border border-teal-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Street address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Email</label>
-                    <input
-                      type="email"
-                      {...register("trade2Email")}
-                      className="w-full px-4 py-3 bg-white border border-teal-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Email address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">City, State, Zip</label>
-                    <input
-                      type="text"
-                      {...register("trade2CityStateZip")}
-                      className="w-full px-4 py-3 bg-white border border-teal-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-300"
-                      placeholder="City, State ZIP"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Attention</label>
-                    <input
-                      type="text"
-                      {...register("trade2Attn")}
-                      className="w-full px-4 py-3 bg-white border border-teal-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Contact person"
-                    />
-                  </div>
+              {/* Additional Authorized Purchasers */}
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">Additional Authorized Purchasers</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdditionalPurchasers(!showAdditionalPurchasers)}
+                    className="text-green-600 hover:text-green-700 font-medium"
+                  >
+                    {showAdditionalPurchasers ? 'Hide' : 'Add More Authorized Purchasers?'}
+                  </button>
                 </div>
-              </div>
-
-              {/* Reference 3 */}
-              <div className="mb-6 p-6 bg-gradient-to-r from-violet-50 to-purple-50 rounded-2xl border border-violet-100">
-                <h3 className="text-lg font-semibold mb-4 text-violet-800">Reference 3</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Company Name</label>
-                    <input
-                      type="text"
-                      {...register("trade3Name")}
-                      className="w-full px-4 py-3 bg-white border border-violet-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Company name"
-                    />
+                
+                {showAdditionalPurchasers && (
+                  <div className="space-y-4">
+                    {additionalPurchasers.map((purchaser, index) => (
+                      <div key={index} className="p-4 bg-gray-50 rounded-xl border">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="font-medium text-gray-700">Purchaser #{index + 1}</h4>
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => removeAdditionalPurchaser(index)}
+                              className="text-red-600 hover:text-red-700 text-sm"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <input
+                            type="text"
+                            placeholder="Name"
+                            value={purchaser.name}
+                            onChange={(e) => {
+                              const updated = [...additionalPurchasers];
+                              updated[index].name = e.target.value;
+                              setAdditionalPurchasers(updated);
+                            }}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Title"
+                            value={purchaser.title}
+                            onChange={(e) => {
+                              const updated = [...additionalPurchasers];
+                              updated[index].title = e.target.value;
+                              setAdditionalPurchasers(updated);
+                            }}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                          <input
+                            type="email"
+                            placeholder="Email"
+                            value={purchaser.email}
+                            onChange={(e) => {
+                              const updated = [...additionalPurchasers];
+                              updated[index].email = e.target.value;
+                              setAdditionalPurchasers(updated);
+                            }}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                          <input
+                            type="tel"
+                            placeholder="Phone"
+                            value={purchaser.phone}
+                            onChange={(e) => {
+                              const updated = [...additionalPurchasers];
+                              updated[index].phone = e.target.value;
+                              setAdditionalPurchasers(updated);
+                            }}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addAdditionalPurchaser}
+                      className="w-full p-3 border-2 border-dashed border-green-300 rounded-xl text-green-600 hover:border-green-400 hover:text-green-700 transition-colors"
+                    >
+                      + Add Another Purchaser
+                    </button>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Fax No</label>
-                    <input
-                      type="text"
-                      {...register("trade3FaxNo")}
-                      className="w-full px-4 py-3 bg-white border border-violet-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Fax number"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Address</label>
-                    <input
-                      type="text"
-                      {...register("trade3Address")}
-                      className="w-full px-4 py-3 bg-white border border-violet-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Street address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Email</label>
-                    <input
-                      type="email"
-                      {...register("trade3Email")}
-                      className="w-full px-4 py-3 bg-white border border-violet-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Email address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">City, State, Zip</label>
-                    <input
-                      type="text"
-                      {...register("trade3CityStateZip")}
-                      className="w-full px-4 py-3 bg-white border border-violet-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-300"
-                      placeholder="City, State ZIP"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Attention</label>
-                    <input
-                      type="text"
-                      {...register("trade3Attn")}
-                      className="w-full px-4 py-3 bg-white border border-violet-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Contact person"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Terms and Conditions Section */}
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-rose-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Terms and Conditions</h2>
-              </div>
-              
-              <div className="max-h-96 overflow-y-auto bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200 p-6 mb-6 shadow-inner">
-                <div className="space-y-6 text-sm leading-relaxed">
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">1. Use of Information</h3>
-                    <p className="text-gray-600">The information you provide will be used to: (a) Establish an account with Alliance Chemical, and (b) Assess your creditworthiness if you request credit terms. You expressly authorize Alliance Chemical to contact all provided references and credit agencies to verify your credit and financial responsibility.</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">2. Payment Terms</h3>
-                    <p className="text-gray-600">All invoices are due and payable according to the terms specified therein. If your account becomes past due, Alliance Chemical reserves the right, at its sole discretion, to suspend or cancel any future orders until your account is brought current. Alliance Chemical may also terminate any agreements or arrangements without further notice.</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">3. Late Payments and Collection Costs</h3>
-                    <p className="text-gray-600">Should your account become delinquent and be placed for collection; you agree to pay a finance charge of 1.5% per month (18% per annum) on the unpaid balance. Additionally, you agree to reimburse Alliance Chemical for all costs of collection, including but not limited to collection agency fees, court costs, and reasonable attorney&apos;s fees.</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">4. Returned Payments</h3>
-                    <p className="text-gray-600">Any returned or dishonored payments, including checks and electronic transfers, will incur a $30.00 service charge. Alliance Chemical reserves the right to require alternative payment methods following a returned payment.</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">5. Product Returns</h3>
-                    <ul className="list-disc ml-6 space-y-2 text-gray-600">
-                      <li><strong>Return Authorization:</strong> No returns will be accepted without prior written authorization in the form of a Return Goods Authorization (RGA) issued by Alliance Chemical.</li>
-                      <li><strong>Restocking Fees:</strong> All authorized returns are subject to restocking fees and return freight charges, which will be determined at Alliance Chemical&apos;s sole discretion.</li>
-                      <li><strong>Condition of Products:</strong> Returned products must be in their original, unopened containers and in resalable condition. Alliance Chemical reserves the right to reject any returns that do not meet these criteria.</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">6. Compliance with Laws and Regulations</h3>
-                    <p className="text-gray-600">You are responsible for complying with all applicable federal, state, and local laws and regulations related to the purchase, storage, handling, and use of chemical products supplied by Alliance Chemical. This includes obtaining any necessary permits or licenses required for the possession and use of such chemicals.</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">7. Product Handling and Safety</h3>
-                    <ul className="list-disc ml-6 space-y-2 text-gray-600">
-                      <li><strong>Assessment of Suitability:</strong> It is your sole responsibility to determine the suitability and safety of the chemical products and containers supplied by Alliance Chemical for your intended use.</li>
-                      <li><strong>Safety Data Sheets (SDS):</strong> You acknowledge receipt of, or access to, Safety Data Sheets for all chemical products purchased and agree to review and understand all safety information prior to use.</li>
-                      <li><strong>Proper Use:</strong> You agree to use the products in accordance with the manufacturer&apos;s guidelines and all applicable laws and regulations, including those related to health, safety, and the environment.</li>
-                      <li><strong>Indemnification:</strong> You agree to indemnify and hold harmless Alliance Chemical from any and all claims, damages, or liabilities arising from your handling, storage, or use of the products.</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">8. Limitation of Liability</h3>
-                    <p className="text-gray-600">Alliance Chemical shall not be liable for any indirect, incidental, consequential, or special damages arising out of or in connection with the products or services provided, including but not limited to damages for loss of profits, business interruption, or any other commercial damages or losses.</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">9. Force Majeure</h3>
-                    <p className="text-gray-600">Alliance Chemical shall not be responsible for any delays or failures in performance resulting from acts beyond its reasonable control, including but not limited to natural disasters, acts of war, terrorism, labor disputes, or governmental regulations.</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">10. Governing Law</h3>
-                    <p className="text-gray-600">These terms and conditions shall be governed by and construed in accordance with the laws of the state in which Alliance Chemical is headquartered, without regard to its conflict of law provisions.</p>
-                  </div>
-
-                  <div className="mt-8 pt-6 border-t border-gray-300">
-                    <p className="font-semibold text-gray-800">Your signature below indicates your acceptance of and agreement to the terms and conditions as stated above.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-r from-rose-50 to-pink-50 rounded-2xl p-6 border border-rose-100">
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    {...register("termsAgreed")}
-                    className="h-5 w-5 text-rose-600 focus:ring-rose-500 border-gray-300 rounded"
-                  />
-                  <label className="text-sm font-semibold text-gray-700">
-                    I agree to the terms and conditions stated above *
-                  </label>
-                </div>
-                {errors.termsAgreed && (
-                  <p className="text-red-500 text-sm flex items-center mt-3">
-                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    {errors.termsAgreed.message}
-                  </p>
                 )}
               </div>
+            </div>
+
+            {/* Enhanced Credit Terms & Financial Information */}
+            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Credit Terms & Financial Information</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Requested Credit Amount ($) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1000"
+                    step="1000"
+                    {...register("requestedCreditAmount", { valueAsNumber: true })}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="5000"
+                  />
+                  {errors.requestedCreditAmount && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.requestedCreditAmount.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Tax Exempt Status *
+                  </label>
+                  <div className="flex space-x-4 pt-2">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="true"
+                        {...register("isTaxExempt", { setValueAs: (value) => value === "true" })}
+                        className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Yes</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="false"
+                        {...register("isTaxExempt", { setValueAs: (value) => value === "true" })}
+                        className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">No</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Does your company use a payment portal? *
+                  </label>
+                  <div className="flex space-x-4 pt-2">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="true"
+                        {...register("usesPaymentPortal", { setValueAs: (value) => value === "true" })}
+                        className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Yes</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="false"
+                        {...register("usesPaymentPortal", { setValueAs: (value) => value === "true" })}
+                        className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">No</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Invoice Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    {...register("invoiceEmail")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="invoices@company.com"
+                  />
+                  {errors.invoiceEmail && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.invoiceEmail.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Enhanced Bank & Trade References */}
+            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Bank & Trade References</h2>
+              </div>
+
+              {/* Reference Upload Method Selection */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">How would you like to provide references?</h3>
+                <div className="flex space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="upload"
+                      {...register("referenceUploadMethod")}
+                      className="w-4 h-4 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Upload Reference Documents</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="manual"
+                      {...register("referenceUploadMethod")}
+                      className="w-4 h-4 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Enter Details Manually</span>
+                  </label>
+                </div>
+              </div>
+
+              {referenceUploadMethod === 'upload' ? (
+                <div className="space-y-6">
+                  {/* Bank Reference Upload */}
+                  <div className="p-6 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Bank Reference</h3>
+                    <div className="flex items-center justify-center w-full">
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-amber-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-amber-50">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <svg className="w-8 h-8 mb-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <p className="mb-2 text-sm text-amber-700">
+                            <span className="font-semibold">Click to upload bank reference</span>
+                          </p>
+                          <p className="text-xs text-amber-600">PDF, DOC, DOCX (MAX. 10MB)</p>
+                        </div>
+                        <input type="file" className="hidden" accept=".pdf,.doc,.docx" />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Trade Reference Upload */}
+                  <div className="p-6 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Trade References (minimum 3 required)</h3>
+                    <div className="flex items-center justify-center w-full">
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-amber-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-amber-50">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <svg className="w-8 h-8 mb-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <p className="mb-2 text-sm text-amber-700">
+                            <span className="font-semibold">Click to upload trade references</span>
+                          </p>
+                          <p className="text-xs text-amber-600">PDF, DOC, DOCX (MAX. 10MB each)</p>
+                        </div>
+                        <input type="file" className="hidden" multiple accept=".pdf,.doc,.docx" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Bank Reference Manual Entry */}
+                  <div className="p-6 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Bank Reference</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        {...register("bankName")}
+                        placeholder="Bank Name"
+                        className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      <input
+                        type="text"
+                        {...register("bankAccountNumber")}
+                        placeholder="Account Number"
+                        className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      <input
+                        type="text"
+                        {...register("bankContactName")}
+                        placeholder="Contact Name"
+                        className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      <input
+                        type="tel"
+                        {...register("bankContactPhone")}
+                        placeholder="Contact Phone"
+                        className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      <input
+                        type="email"
+                        {...register("bankContactEmail")}
+                        placeholder="Contact Email"
+                        className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 md:col-span-2"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Trade References Manual Entry */}
+                  <div className="p-6 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Trade References (minimum 3 required)</h3>
+                    
+                    {/* Trade Reference 1 */}
+                    <div className="mb-6">
+                      <h4 className="font-medium text-gray-700 mb-3">Trade Reference #1</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input
+                          type="text"
+                          {...register("trade1Name")}
+                          placeholder="Company Name"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade1Phone")}
+                          placeholder="Phone Number"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade1Address")}
+                          placeholder="Address"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade1CityStateZip")}
+                          placeholder="City, State, ZIP"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="email"
+                          {...register("trade1Email")}
+                          placeholder="Email"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade1Attn")}
+                          placeholder="Attention To"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Trade Reference 2 */}
+                    <div className="mb-6">
+                      <h4 className="font-medium text-gray-700 mb-3">Trade Reference #2</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input
+                          type="text"
+                          {...register("trade2Name")}
+                          placeholder="Company Name"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade2Phone")}
+                          placeholder="Phone Number"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade2Address")}
+                          placeholder="Address"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade2CityStateZip")}
+                          placeholder="City, State, ZIP"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="email"
+                          {...register("trade2Email")}
+                          placeholder="Email"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade2Attn")}
+                          placeholder="Attention To"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Trade Reference 3 */}
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-3">Trade Reference #3</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input
+                          type="text"
+                          {...register("trade3Name")}
+                          placeholder="Company Name"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade3Phone")}
+                          placeholder="Phone Number"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade3Address")}
+                          placeholder="Address"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade3CityStateZip")}
+                          placeholder="City, State, ZIP"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="email"
+                          {...register("trade3Email")}
+                          placeholder="Email"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <input
+                          type="text"
+                          {...register("trade3Attn")}
+                          placeholder="Attention To"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}

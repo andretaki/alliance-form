@@ -39,8 +39,12 @@ export default function DigitalSignature({ onSignatureComplete }: DigitalSignatu
     if (!termsRef.current || !signaturePadRef.current) return null;
 
     try {
-      // Create PDF
-      const pdf = new jsPDF();
+      // Create PDF with better formatting
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
       
       // Create a temporary clone of the terms content without height restrictions
       // This ensures we capture the complete content, not just the visible portion
@@ -50,12 +54,13 @@ export default function DigitalSignature({ onSignatureComplete }: DigitalSignatu
       
       // Apply the same styling but remove height/overflow restrictions
       tempContainer.style.cssText = `
-        width: ${originalTermsElement.offsetWidth}px;
+        width: 800px;
         padding: 24px;
-        background: linear-gradient(to bottom right, rgb(249, 250, 251), white);
-        border-radius: 16px;
-        border: 1px solid rgb(229, 231, 235);
+        background: white;
         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #374151;
         position: absolute;
         top: -9999px;
         left: -9999px;
@@ -66,73 +71,122 @@ export default function DigitalSignature({ onSignatureComplete }: DigitalSignatu
       document.body.appendChild(tempContainer);
       
       try {
-        // Capture the complete terms content
+        // Wait for fonts to load
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Capture the complete terms content with better quality
         const termsCanvas = await html2canvas(tempContainer, {
           useCORS: true,
           allowTaint: true,
-          scale: 2, // Higher scale for better quality
+          scale: 2,
+          width: 800,
           height: tempContainer.scrollHeight,
-          windowHeight: tempContainer.scrollHeight
+          backgroundColor: '#ffffff',
+          logging: false,
+          removeContainer: false
         });
-        const termsImgData = termsCanvas.toDataURL('image/png');
         
-        // Calculate if we need multiple pages
-        const pageHeight = pdf.internal.pageSize.height;
-        const imgHeight = (termsCanvas.height * 190) / termsCanvas.width;
-        const remainingHeight = pageHeight - 80; // Leave space for signature and timestamp
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 15;
+        const contentWidth = pageWidth - (margin * 2);
+        const contentHeight = pageHeight - (margin * 2) - 40; // Leave space for signature
         
-        if (imgHeight > remainingHeight) {
-          // Split content across multiple pages if needed
-          const imgWidth = 190;
-          const ratio = termsCanvas.width / termsCanvas.height;
-          let currentY = 10;
-          let sourceY = 0;
-          const sourceHeight = termsCanvas.height;
+        // Calculate image dimensions
+        const imgWidth = contentWidth;
+        const imgHeight = (termsCanvas.height * imgWidth) / termsCanvas.width;
+        
+        // Add header
+        pdf.setFontSize(18);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Alliance Chemical - Terms and Conditions', margin, margin + 10);
+        
+        let currentY = margin + 20;
+        
+        if (imgHeight > contentHeight) {
+          // Multi-page content
+          const totalPages = Math.ceil(imgHeight / contentHeight);
           
-          while (sourceY < sourceHeight) {
-            const pageRemainingHeight = pageHeight - currentY - 80; // Leave space for signature
-            const sectionHeight = Math.min(pageRemainingHeight, (sourceHeight - sourceY) * imgWidth / termsCanvas.width);
-            const sourceSectionHeight = (sectionHeight * termsCanvas.width) / imgWidth;
+          for (let page = 0; page < totalPages; page++) {
+            if (page > 0) {
+              pdf.addPage();
+              currentY = margin;
+            }
             
-            // Create a canvas for this section
-            const sectionCanvas = document.createElement('canvas');
-            sectionCanvas.width = termsCanvas.width;
-            sectionCanvas.height = sourceSectionHeight;
-            const sectionCtx = sectionCanvas.getContext('2d');
+            const sourceY = page * (termsCanvas.height / totalPages);
+            const sourceHeight = Math.min(
+              termsCanvas.height / totalPages,
+              termsCanvas.height - sourceY
+            );
             
-            if (sectionCtx) {
-              sectionCtx.drawImage(
-                termsCanvas, 
-                0, sourceY, termsCanvas.width, sourceSectionHeight,
-                0, 0, termsCanvas.width, sourceSectionHeight
+            // Create canvas for this page section
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = termsCanvas.width;
+            pageCanvas.height = sourceHeight;
+            const pageCtx = pageCanvas.getContext('2d');
+            
+            if (pageCtx) {
+              pageCtx.drawImage(
+                termsCanvas,
+                0, sourceY, termsCanvas.width, sourceHeight,
+                0, 0, termsCanvas.width, sourceHeight
               );
               
-              const sectionImgData = sectionCanvas.toDataURL('image/png');
-              pdf.addImage(sectionImgData, 'PNG', 10, currentY, imgWidth, sectionHeight);
-            }
-            
-            sourceY += sourceSectionHeight;
-            
-            // Add new page if there's more content
-            if (sourceY < sourceHeight) {
-              pdf.addPage();
-              currentY = 10;
-            } else {
-              currentY += sectionHeight + 10;
+              const pageImgData = pageCanvas.toDataURL('image/png', 1.0);
+              const sectionHeight = (sourceHeight * imgWidth) / termsCanvas.width;
+              
+              pdf.addImage(pageImgData, 'PNG', margin, currentY, imgWidth, sectionHeight);
             }
           }
+          
+          // Add signature on new page
+          pdf.addPage();
+          currentY = margin;
         } else {
-          // Single page - add the complete terms image
-          pdf.addImage(termsImgData, 'PNG', 10, 10, 190, imgHeight);
+          // Single page content
+          const termsImgData = termsCanvas.toDataURL('image/png', 1.0);
+          pdf.addImage(termsImgData, 'PNG', margin, currentY, imgWidth, imgHeight);
+          currentY += imgHeight + 20;
         }
         
-        // Add signature on the last page
-        const signatureData = signaturePadRef.current.toDataURL();
-        pdf.addImage(signatureData, 'PNG', 10, pdf.internal.pageSize.height - 50, 100, 30);
+        // Add signature section
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Digital Signature', margin, currentY);
+        currentY += 10;
         
-        // Add timestamp
-        const timestamp = new Date().toISOString();
-        pdf.text(`Signed on: ${timestamp}`, 10, pdf.internal.pageSize.height - 30);
+        // Add signature image
+        const signatureData = signaturePadRef.current.toDataURL('image/png', 1.0);
+        const signatureWidth = 80;
+        const signatureHeight = 30;
+        
+        // Add signature box
+        pdf.setDrawColor(200, 200, 200);
+        pdf.rect(margin, currentY, signatureWidth, signatureHeight);
+        
+        // Add signature
+        pdf.addImage(signatureData, 'PNG', margin + 2, currentY + 2, signatureWidth - 4, signatureHeight - 4);
+        
+        // Add signature details
+        currentY += signatureHeight + 10;
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        const timestamp = new Date().toLocaleString();
+        pdf.text(`Digitally signed on: ${timestamp}`, margin, currentY);
+        currentY += 5;
+        pdf.text(`IP Address: ${window.location.hostname}`, margin, currentY);
+        currentY += 5;
+        pdf.text(`User Agent: ${navigator.userAgent.substring(0, 60)}...`, margin, currentY);
+        
+        // Add page numbers if multiple pages
+        const totalPages = pdf.getNumberOfPages();
+        if (totalPages > 1) {
+          for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8);
+            pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10);
+          }
+        }
         
       } finally {
         // Clean up the temporary element
@@ -141,21 +195,21 @@ export default function DigitalSignature({ onSignatureComplete }: DigitalSignatu
       
       // Add metadata
       pdf.setProperties({
-        title: 'Alliance Chemical Terms and Conditions',
-        subject: 'Signed Terms and Conditions',
+        title: 'Alliance Chemical Terms and Conditions - Signed',
+        subject: 'Digitally Signed Terms and Conditions Agreement',
         author: 'Alliance Chemical',
-        keywords: 'terms, conditions, signature, legal',
+        keywords: 'terms, conditions, signature, legal, agreement',
         creator: 'Alliance Chemical Digital Signature System'
       });
       
-      // Save PDF
+      // Save PDF and return URL
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       
       return pdfUrl;
     } catch (err) {
       console.error('Error generating PDF:', err);
-      setError('Failed to generate signed document');
+      setError('Failed to generate signed document. Please try again.');
       return null;
     }
   };
