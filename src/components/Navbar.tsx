@@ -21,16 +21,10 @@ export default function Navbar() {
             {/* Navigation Links */}
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               <Link 
-                href="/customer-application" 
+                href="/" 
                 className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 hover:text-gray-900"
               >
                 Credit Application
-              </Link>
-              <Link 
-                href="/international-shipping" 
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-              >
-                International Shipping
               </Link>
             </div>
           </div>
@@ -62,7 +56,7 @@ export default function Navbar() {
               className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
             >
               <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m-9 9a9 9 0 019-9" />
               </svg>
               Website
             </a>
@@ -124,21 +118,7 @@ export default function Navbar() {
               className="bg-red-50 border-red-500 text-red-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Home
-            </Link>
-            <Link
-              href="/customer-application"
-              className="border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Customer Application
-            </Link>
-            <Link
-              href="/international-shipping"
-              className="border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              International Shipping
+              Credit Application
             </Link>
           </div>
         </div>

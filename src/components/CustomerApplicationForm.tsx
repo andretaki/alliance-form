@@ -371,6 +371,26 @@ export default function CustomerApplicationForm() {
 
         {!showSignature ? (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            {/* PDF Download Option - Moved to Top */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Prefer PDF?</h3>
+                  <p className="text-gray-600">Download, complete, and email the PDF version of this form to sales@alliancechemical.com</p>
+                </div>
+                <a
+                  href="/Alliance Chemical Credit Applicaiton.pdf"
+                  download="Alliance-Chemical-Credit-Application.pdf"
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download PDF
+                </a>
+              </div>
+            </div>
+
             {/* Company Information Section */}
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
               <div className="flex items-center mb-6">
@@ -628,26 +648,6 @@ export default function CustomerApplicationForm() {
                     </p>
                   )}
                 </div>
-              </div>
-            </div>
-
-            {/* PDF Download Option */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Prefer PDF?</h3>
-                  <p className="text-gray-600">Download, complete, and email the PDF version of this form to sales@alliancechemical.com</p>
-                </div>
-                <a
-                  href="/Alliance Chemical Credit Applicaiton.pdf"
-                  download="Alliance-Chemical-Credit-Application.pdf"
-                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download PDF
-                </a>
               </div>
             </div>
 
