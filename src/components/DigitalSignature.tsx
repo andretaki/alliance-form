@@ -13,7 +13,7 @@ interface DigitalSignatureProps {
   }) => void;
 }
 
-export default function DigitalSignature({ onSignatureComplete }: DigitalSignatureProps) {
+export default function DigitalSignature({ applicationId, onSignatureComplete }: DigitalSignatureProps) {
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const signaturePadRef = useRef<SignaturePad>(null);
@@ -36,177 +36,185 @@ export default function DigitalSignature({ onSignatureComplete }: DigitalSignatu
   };
 
   const generateSignedPDF = async () => {
-    if (!termsRef.current || !signaturePadRef.current) return null;
+    if (!signaturePadRef.current) return null;
 
     try {
-      // Create PDF with better formatting
+      // Create professional PDF
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
       
-      // Create a temporary clone of the terms content without height restrictions
-      // This ensures we capture the complete content, not just the visible portion
-      const originalTermsElement = termsRef.current;
-      const tempContainer = document.createElement('div');
-      tempContainer.innerHTML = originalTermsElement.innerHTML;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - (margin * 2);
+      let currentY = margin;
+
+      // Header with company logo area
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Alliance Chemical', margin, currentY);
+      currentY += 8;
       
-      // Apply the same styling but remove height/overflow restrictions
-      tempContainer.style.cssText = `
-        width: 800px;
-        padding: 24px;
-        background: white;
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-        font-size: 14px;
-        line-height: 1.5;
-        color: #374151;
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-        visibility: hidden;
-      `;
-      
-      // Add to document temporarily
-      document.body.appendChild(tempContainer);
-      
-      try {
-        // Wait for fonts to load
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Capture the complete terms content with better quality
-        const termsCanvas = await html2canvas(tempContainer, {
-          useCORS: true,
-          allowTaint: true,
-          scale: 2,
-          width: 800,
-          height: tempContainer.scrollHeight,
-          backgroundColor: '#ffffff',
-          logging: false,
-          removeContainer: false
-        });
-        
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 15;
-        const contentWidth = pageWidth - (margin * 2);
-        const contentHeight = pageHeight - (margin * 2) - 40; // Leave space for signature
-        
-        // Calculate image dimensions
-        const imgWidth = contentWidth;
-        const imgHeight = (termsCanvas.height * imgWidth) / termsCanvas.width;
-        
-        // Add header
-        pdf.setFontSize(18);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Alliance Chemical - Terms and Conditions', margin, margin + 10);
-        
-        let currentY = margin + 20;
-        
-        if (imgHeight > contentHeight) {
-          // Multi-page content
-          const totalPages = Math.ceil(imgHeight / contentHeight);
-          
-          for (let page = 0; page < totalPages; page++) {
-            if (page > 0) {
-              pdf.addPage();
-              currentY = margin;
-            }
-            
-            const sourceY = page * (termsCanvas.height / totalPages);
-            const sourceHeight = Math.min(
-              termsCanvas.height / totalPages,
-              termsCanvas.height - sourceY
-            );
-            
-            // Create canvas for this page section
-            const pageCanvas = document.createElement('canvas');
-            pageCanvas.width = termsCanvas.width;
-            pageCanvas.height = sourceHeight;
-            const pageCtx = pageCanvas.getContext('2d');
-            
-            if (pageCtx) {
-              pageCtx.drawImage(
-                termsCanvas,
-                0, sourceY, termsCanvas.width, sourceHeight,
-                0, 0, termsCanvas.width, sourceHeight
-              );
-              
-              const pageImgData = pageCanvas.toDataURL('image/png', 1.0);
-              const sectionHeight = (sourceHeight * imgWidth) / termsCanvas.width;
-              
-              pdf.addImage(pageImgData, 'PNG', margin, currentY, imgWidth, sectionHeight);
-            }
-          }
-          
-          // Add signature on new page
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Credit Application Terms & Conditions Agreement', margin, currentY);
+      currentY += 15;
+
+      // Date and application info
+      pdf.setFontSize(10);
+      pdf.text(`Date: ${new Date().toLocaleDateString()}`, margin, currentY);
+      pdf.text(`Application ID: ${applicationId}`, pageWidth - margin - 40, currentY);
+      currentY += 15;
+
+      // Terms and Conditions Content
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('TERMS AND CONDITIONS', margin, currentY);
+      currentY += 10;
+
+      // Professional terms content
+      const termsContent = [
+        '1. CREDIT TERMS',
+        'Payment terms will be established based on credit approval and may include Net 15, Net 30, or COD requirements.',
+        '',
+        '2. LIABILITY AND INSURANCE',
+        'Customer acknowledges responsibility for proper handling, storage, and use of all chemical products purchased.',
+        'Customer must maintain appropriate insurance coverage for chemical handling and storage.',
+        '',
+        '3. COMPLIANCE',
+        'Customer agrees to comply with all applicable federal, state, and local regulations regarding chemical',
+        'handling, storage, transportation, and disposal.',
+        '',
+        '4. ORDER FULFILLMENT',
+        'Orders are subject to product availability and credit approval. Alliance Chemical reserves the right',
+        'to modify or cancel orders based on availability or creditworthiness.',
+        '',
+        '5. RETURNS AND EXCHANGES',
+        'Chemical products may not be returned unless defective or shipped in error. All returns must be',
+        'pre-approved and comply with safety regulations.',
+        '',
+        '6. PRICING',
+        'Prices are subject to change without notice. Current pricing will be confirmed at time of order.',
+        '',
+        '7. FORCE MAJEURE',
+        'Alliance Chemical shall not be liable for delays or failures in performance resulting from acts',
+        'beyond our reasonable control.',
+        '',
+        '8. GOVERNING LAW',
+        'This agreement shall be governed by the laws of the State of Texas.',
+        '',
+        '9. ENTIRE AGREEMENT',
+        'This agreement constitutes the entire agreement between the parties and supersedes all prior',
+        'negotiations, representations, or agreements relating to the subject matter herein.'
+      ];
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+
+      termsContent.forEach((line) => {
+        if (currentY > pageHeight - 40) {
           pdf.addPage();
           currentY = margin;
+        }
+
+        if (line === '') {
+          currentY += 4;
+        } else if (line.match(/^\d+\./)) {
+          // Section headers
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(line, margin, currentY);
+          currentY += 6;
+          pdf.setFont('helvetica', 'normal');
         } else {
-          // Single page content
-          const termsImgData = termsCanvas.toDataURL('image/png', 1.0);
-          pdf.addImage(termsImgData, 'PNG', margin, currentY, imgWidth, imgHeight);
-          currentY += imgHeight + 20;
+          // Regular content with text wrapping
+          const splitText = pdf.splitTextToSize(line, maxWidth);
+          pdf.text(splitText, margin, currentY);
+          currentY += splitText.length * 4;
         }
-        
-        // Add signature section
-        pdf.setFontSize(16);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Digital Signature', margin, currentY);
-        currentY += 10;
-        
-        // Add signature image
-        const signatureData = signaturePadRef.current.toDataURL('image/png', 1.0);
-        const signatureWidth = 80;
-        const signatureHeight = 30;
-        
-        // Add signature box
-        pdf.setDrawColor(200, 200, 200);
-        pdf.rect(margin, currentY, signatureWidth, signatureHeight);
-        
-        // Add signature
-        pdf.addImage(signatureData, 'PNG', margin + 2, currentY + 2, signatureWidth - 4, signatureHeight - 4);
-        
-        // Add signature details
-        currentY += signatureHeight + 10;
-        pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'normal');
-        const timestamp = new Date().toLocaleString();
-        pdf.text(`Digitally signed on: ${timestamp}`, margin, currentY);
-        currentY += 5;
-        pdf.text(`IP Address: ${window.location.hostname}`, margin, currentY);
-        currentY += 5;
-        pdf.text(`User Agent: ${navigator.userAgent.substring(0, 60)}...`, margin, currentY);
-        
-        // Add page numbers if multiple pages
-        const totalPages = pdf.getNumberOfPages();
-        if (totalPages > 1) {
-          for (let i = 1; i <= totalPages; i++) {
-            pdf.setPage(i);
-            pdf.setFontSize(8);
-            pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10);
-          }
-        }
-        
-      } finally {
-        // Clean up the temporary element
-        document.body.removeChild(tempContainer);
+      });
+
+      // Add signature section
+      if (currentY > pageHeight - 80) {
+        pdf.addPage();
+        currentY = margin;
       }
+
+      currentY += 15;
       
+      // Signature section header
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('DIGITAL SIGNATURE', margin, currentY);
+      currentY += 10;
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('By signing below, I acknowledge that I have read, understood, and agree to be bound by', margin, currentY);
+      currentY += 4;
+      pdf.text('the terms and conditions set forth above.', margin, currentY);
+      currentY += 15;
+
+      // Signature box
+      const signatureBoxWidth = 80;
+      const signatureBoxHeight = 30;
+      
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.5);
+      pdf.rect(margin, currentY, signatureBoxWidth, signatureBoxHeight);
+
+      // Add signature image
+      const signatureData = signaturePadRef.current.toDataURL('image/png', 1.0);
+      pdf.addImage(signatureData, 'PNG', margin + 2, currentY + 2, signatureBoxWidth - 4, signatureBoxHeight - 4);
+
+      // Signature details
+      currentY += signatureBoxHeight + 8;
+      
+      pdf.setFontSize(8);
+      pdf.text('Signature', margin, currentY);
+      
+      const timestamp = new Date().toLocaleString();
+      const signatureHash = await generateSignatureHash(signatureData);
+      
+      // Right column for signature details - ensure proper spacing
+      const rightColumnX = margin + signatureBoxWidth + 10;
+      const rightColumnWidth = pageWidth - rightColumnX - margin;
+      
+      pdf.text(`Date/Time: ${timestamp}`, rightColumnX, currentY - 8);
+      
+      const ipAddress = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
+      pdf.text(`IP Address: ${ipAddress}`, rightColumnX, currentY - 4);
+      
+      // Handle long signature hash with text wrapping
+      const hashText = `Digital Signature Hash: ${signatureHash}`;
+      const wrappedHashText = pdf.splitTextToSize(hashText, rightColumnWidth);
+      pdf.text(wrappedHashText, rightColumnX, currentY);
+
+      // Footer
+      const footerY = pageHeight - 15;
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'italic');
+      const footerText = 'This document was digitally signed and is legally binding.';
+      const footerWidth = pdf.getTextWidth(footerText);
+      pdf.text(footerText, (pageWidth - footerWidth) / 2, footerY);
+
       // Add metadata
       pdf.setProperties({
-        title: 'Alliance Chemical Terms and Conditions - Signed',
-        subject: 'Digitally Signed Terms and Conditions Agreement',
+        title: 'Alliance Chemical Credit Agreement - Digitally Signed',
+        subject: 'Credit Application Terms and Conditions Agreement',
         author: 'Alliance Chemical',
-        keywords: 'terms, conditions, signature, legal, agreement',
-        creator: 'Alliance Chemical Digital Signature System'
+        keywords: 'credit, terms, conditions, signature, legal, agreement, alliance chemical',
+        creator: 'Alliance Chemical Credit Application System'
       });
-      
-      // Save PDF and return URL
+
+      // Generate and return blob URL
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       
       return pdfUrl;
+      
     } catch (err) {
       console.error('Error generating PDF:', err);
       setError('Failed to generate signed document. Please try again.');

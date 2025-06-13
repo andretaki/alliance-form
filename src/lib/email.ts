@@ -161,163 +161,51 @@ export async function sendApplicationSummary(applicationData: ApplicationData) {
     return;
   }
 
-  let aiAnalysisContent = 'AI analysis not performed (OpenAI not configured or error).';
+  const subject = `[New App] ${applicationData.legalEntityName} (ID: ${applicationData.id || 'N/A'})`;
   
-  if (openai) {
-    try {
-      const prompt = `You are an aggressive, no-nonsense senior credit analyst for Alliance Chemical. Your job is to be THOROUGH and SKEPTICAL. Analyze this application like a detective looking for red flags, inconsistencies, and opportunities.
-
-APPLICATION DATA:
-Company: ${applicationData.legalEntityName} ${applicationData.dba ? `(DBA: ${applicationData.dba})` : ''}
-Tax EIN: ${applicationData.taxEIN}
-DUNS: ${applicationData.dunsNumber || 'NOT PROVIDED - RED FLAG'}
-Phone: ${applicationData.phoneNo}
-Buyer: ${applicationData.buyerNameEmail}
-AP Contact: ${applicationData.accountsPayableNameEmail}
-Billing: ${applicationData.billToAddress}, ${applicationData.billToCityStateZip}
-Shipping: ${applicationData.shipToAddress}, ${applicationData.shipToCityStateZip}
-
-TRADE REFERENCES:
-1. ${applicationData.trade1Name || 'MISSING'} ${applicationData.trade1Name ? `| ${applicationData.trade1Email || 'NO EMAIL'} | ${applicationData.trade1Address || 'NO ADDRESS'}, ${applicationData.trade1CityStateZip || 'NO LOCATION'}` : ''}
-2. ${applicationData.trade2Name || 'MISSING'} ${applicationData.trade2Name ? `| ${applicationData.trade2Email || 'NO EMAIL'} | ${applicationData.trade2Address || 'NO ADDRESS'}, ${applicationData.trade2CityStateZip || 'NO LOCATION'}` : ''}
-3. ${applicationData.trade3Name || 'MISSING'} ${applicationData.trade3Name ? `| ${applicationData.trade3Email || 'NO EMAIL'} | ${applicationData.trade3Address || 'NO ADDRESS'}, ${applicationData.trade3CityStateZip || 'NO LOCATION'}` : ''}
-
-BE RUTHLESS IN YOUR ANALYSIS:
-1. RISK LEVEL: Low/Medium/High/EXTREME
-2. CREDIT DECISION: Approve/Conditional/DECLINE/Manual Review Required
-3. RECOMMENDED CREDIT LIMIT: Be conservative or deny if suspicious
-4. PAYMENT TERMS: COD for high risk, Net 15/30 for approved
-5. RED FLAGS: What looks suspicious, missing, or inconsistent?
-6. MISSING DATA PENALTIES: Dock points for incomplete references
-7. COMPANY LEGITIMACY ASSESSMENT: Does this look like a real business?
-8. REFERENCE QUALITY SCORE: Rate the trade references 1-10
-9. GEOGRAPHIC RISK: Any location-based concerns?
-10. IMMEDIATE ACTIONS: What needs to be done NOW before approval?
-
-SCORING CRITERIA:
-- Missing DUNS number: -20 points
-- Incomplete trade references: -10 points each
-- Suspicious email domains: -15 points
-- P.O. Box addresses: -10 points
-- Same billing/shipping address: +5 points
-- Professional email format: +10 points
-- Complete information: +15 points
-
-Be direct, skeptical, and don't sugar-coat anything. If it smells fishy, call it out. This is B2B chemical distribution - we need solid, reliable customers only.`;
-
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 1500,
-      });
-
-      aiAnalysisContent = completion.choices[0]?.message?.content || 'AI analysis returned no content.';
-    } catch (aiError) {
-      console.error('Error generating AI analysis for application:', aiError);
-      aiAnalysisContent = 'Error during AI analysis generation.';
-    }
-  }
-
-  const subject = `[New Customer Application] ${applicationData.legalEntityName} (ID: ${applicationData.id || 'N/A'})`;
-  
+  // Simplified text body - NO AI ANALYSIS
   const textBody = `
-New Customer Credit Application Received
+A new customer credit application has been received and is being processed by our AI system.
+
+Company: ${applicationData.legalEntityName}
 Application ID: ${applicationData.id || 'N/A'}
 Submission Date: ${new Date().toISOString()}
 
-[COMPANY INFORMATION]
-Legal Entity Name: ${applicationData.legalEntityName}
-DBA: ${applicationData.dba || 'N/A'}
-Tax EIN: ${applicationData.taxEIN}
-DUNS Number: ${applicationData.dunsNumber || 'N/A'}
+🤖 AI PROCESSING STATUS: In progress...
+You will receive a separate AI credit analysis report within 1-2 minutes.
 
-[CONTACT INFORMATION]
-Phone: ${applicationData.phoneNo}
-Buyer Contact: ${applicationData.buyerNameEmail}
-AP Contact: ${applicationData.accountsPayableNameEmail}
-Invoice Email Preference: ${applicationData.wantInvoicesEmailed ? 'Yes' : 'No'}
-Invoice Email: ${applicationData.invoiceEmail || (applicationData.wantInvoicesEmailed ? 'Not Provided' : 'N/A')}
-
-[ADDRESSES]
-Billing Address:
-${applicationData.billToAddress}
-${applicationData.billToCityStateZip}
-
-Shipping Address:
-${applicationData.shipToAddress}
-${applicationData.shipToCityStateZip}
-
-[TRADE REFERENCES]
-${[1, 2, 3].map(num => {
-  const name = (applicationData as any)[`trade${num}Name`];
-  if (!name) return `Reference ${num}: Not Provided`;
-  return `Reference ${num}:
-Company: ${name}
-Address: ${(applicationData as any)[`trade${num}Address`]}
-City/State/Zip: ${(applicationData as any)[`trade${num}CityStateZip`]}
-Contact: ${(applicationData as any)[`trade${num}Attn`]}
-Email: ${(applicationData as any)[`trade${num}Email`]}
-Phone/Fax: ${(applicationData as any)[`trade${num}FaxNo`]}`;
-}).join('\n\n')}
-
-[TERMS]
-Terms Agreed: ${applicationData.termsAgreed ? 'Yes' : 'No'}
-
-[AI ANALYSIS]
-${aiAnalysisContent}
+The application details are included below for your review.
 `;
 
+  // Simplified HTML body - NO AI ANALYSIS
   const htmlBody = `
 <html>
-<body>
-  <h1>New Customer Credit Application: ${applicationData.legalEntityName}</h1>
-  <p><strong>Application ID:</strong> ${applicationData.id || 'N/A'}</p>
-  <p><strong>Submission Date:</strong> ${new Date().toISOString()}</p>
-
-  <h2>Company Information</h2>
+<body style="font-family: sans-serif; line-height: 1.5;">
+  <h1>New Customer Application Received</h1>
+  <p>A new application from <strong>${applicationData.legalEntityName}</strong> (ID: #${applicationData.id || 'N/A'}) is being processed by our AI system.</p>
+  <div style="background: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; margin: 15px 0;">
+    <p style="margin: 0; color: #1e40af;"><strong>🤖 AI PROCESSING STATUS:</strong> In progress...</p>
+    <p style="margin: 5px 0 0 0; color: #1e40af; font-size: 14px;">You will receive a separate AI credit analysis report within 1-2 minutes.</p>
+  </div>
+  <p>The application details are included below for your review and processing.</p>
+  <hr>
+  <h3>Submission Details:</h3>
   <ul>
     <li><strong>Legal Entity Name:</strong> ${applicationData.legalEntityName}</li>
-    <li><strong>DBA:</strong> ${applicationData.dba || 'N/A'}</li>
+    <li><strong>Buyer Contact:</strong> ${applicationData.buyerNameEmail}</li>
     <li><strong>Tax EIN:</strong> ${applicationData.taxEIN}</li>
+    <li><strong>Phone:</strong> ${applicationData.phoneNo}</li>
+    <li><strong>Billing Address:</strong> ${applicationData.billToAddress}</li>
+    <li><strong>DBA:</strong> ${applicationData.dba || 'N/A'}</li>
     <li><strong>DUNS Number:</strong> ${applicationData.dunsNumber || 'N/A'}</li>
   </ul>
-
-  <h2>Contact Information</h2>
+  <h3>Additional Information:</h3>
   <ul>
-    <li><strong>Phone:</strong> ${applicationData.phoneNo}</li>
-    <li><strong>Buyer Contact:</strong> ${applicationData.buyerNameEmail}</li>
-    <li><strong>AP Contact:</strong> ${applicationData.accountsPayableNameEmail}</li>
-    <li><strong>Invoice Email Preference:</strong> ${applicationData.wantInvoicesEmailed ? 'Yes' : 'No'}</li>
-    <li><strong>Invoice Email:</strong> ${applicationData.invoiceEmail || (applicationData.wantInvoicesEmailed ? 'Not Provided' : 'N/A')}</li>
+    <li><strong>Accounts Payable Contact:</strong> ${applicationData.accountsPayableNameEmail || 'N/A'}</li>
+    <li><strong>Wants Invoices Emailed:</strong> ${applicationData.wantInvoicesEmailed ? 'Yes' : 'No'}</li>
+    <li><strong>Invoice Email:</strong> ${applicationData.invoiceEmail || 'N/A'}</li>
+    <li><strong>Terms Agreement:</strong> ${applicationData.termsAgreed ? 'Signed' : 'Not Signed'}</li>
   </ul>
-
-  <h2>Addresses</h2>
-  <h3>Billing Address:</h3>
-  <p>${applicationData.billToAddress}<br>${applicationData.billToCityStateZip}</p>
-  <h3>Shipping Address:</h3>
-  <p>${applicationData.shipToAddress}<br>${applicationData.shipToCityStateZip}</p>
-
-  <h2>Trade References</h2>
-  ${[1, 2, 3].map(num => {
-    const name = (applicationData as any)[`trade${num}Name`];
-    if (!name) return `<p><strong>Reference ${num}:</strong> Not Provided</p>`;
-    return `<div style="margin-bottom: 1em; padding: 0.5em; border: 1px solid #eee;">
-      <h4>Reference ${num}</h4>
-      <p><strong>Company:</strong> ${name}<br>
-      <strong>Address:</strong> ${(applicationData as any)[`trade${num}Address`]}, ${(applicationData as any)[`trade${num}CityStateZip`]}<br>
-      <strong>Contact:</strong> ${(applicationData as any)[`trade${num}Attn`]}<br>
-      <strong>Email:</strong> ${(applicationData as any)[`trade${num}Email`]}<br>
-      <strong>Phone/Fax:</strong> ${(applicationData as any)[`trade${num}FaxNo`]}
-      </p></div>`;
-  }).join('')}
-
-  <h2>Terms</h2>
-  <p><strong>Terms Agreed:</strong> ${applicationData.termsAgreed ? 'Yes' : 'No'}</p>
-
-  <h2>AI Analysis</h2>
-  <div style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
-    <p>${aiAnalysisContent.replace(/\n/g, '<br>')}</p>
-  </div>
 </body>
 </html>
 `;

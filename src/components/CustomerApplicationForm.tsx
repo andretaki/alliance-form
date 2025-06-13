@@ -142,6 +142,64 @@ export default function CustomerApplicationForm() {
   const wantInvoicesEmailed = watch("wantInvoicesEmailed");
   const referenceUploadMethod = watch("referenceUploadMethod");
   
+  // Test button function - fill all fields with test data (development only)
+  const fillTestData = () => {
+    setValue("legalEntityName", "Test Chemical Company LLC");
+    setValue("dba", "Test Chemicals");
+    setValue("taxEIN", "12-3456789");
+    setValue("dunsNumber", "123456789");
+    setValue("phoneNo", "(555) 123-4567");
+    setValue("primaryContactName", "John Test Manager");
+    setValue("primaryContactTitle", "Operations Manager");
+    setValue("primaryContactEmail", "john.manager@testchemical.com");
+    setValue("industry", "Chemical Processing");
+    setValue("companyType", "LLC");
+    setValue("numberOfEmployees", "51-100");
+    setValue("yearsSinceIncorporation", "6-10 years");
+    setValue("stateIncorporated", "TX");
+    setValue("companyValuation", "$10M - $50M");
+    setValue("businessWebsite", "https://testchemical.com");
+    setValue("billToAddress", "123 Industrial Blvd");
+    setValue("billToCityStateZip", "Houston, TX 77002");
+    setValue("shipToAddress", "123 Industrial Blvd");
+    setValue("shipToCityStateZip", "Houston, TX 77002");
+    setValue("requestedCreditAmount", 25000);
+    setValue("isTaxExempt", false);
+    setValue("usesPaymentPortal", true);
+    setValue("buyerNameEmail", "purchasing@testchemical.com");
+    setValue("accountsPayableNameEmail", "ap@testchemical.com");
+    setValue("wantInvoicesEmailed", true);
+    setValue("invoiceEmail", "invoices@testchemical.com");
+    setValue("bankName", "Test National Bank");
+    setValue("bankAccountNumber", "****1234");
+    setValue("bankContactName", "Sarah Johnson");
+    setValue("bankContactPhone", "(555) 987-6543");
+    setValue("bankContactEmail", "sarah.johnson@testnationalbank.com");
+    setValue("trade1Name", "Chemical Supply Co");
+    setValue("trade1Address", "456 Supply St");
+    setValue("trade1CityStateZip", "Dallas, TX 75201");
+    setValue("trade1Attn", "Mike Rodriguez");
+    setValue("trade1Email", "mike@chemicalsupply.com");
+    setValue("trade1FaxNo", "(555) 111-2222");
+    setValue("trade1Phone", "(555) 111-2221");
+    setValue("trade2Name", "Industrial Materials Inc");
+    setValue("trade2Address", "789 Materials Ave");
+    setValue("trade2CityStateZip", "Austin, TX 78701");
+    setValue("trade2Attn", "Lisa Chen");
+    setValue("trade2Email", "lisa@industrialmaterials.com");
+    setValue("trade2FaxNo", "(555) 333-4444");
+    setValue("trade2Phone", "(555) 333-4443");
+    setValue("trade3Name", "Global Chemical Partners");
+    setValue("trade3Address", "321 Partners Rd");
+    setValue("trade3CityStateZip", "San Antonio, TX 78201");
+    setValue("trade3Attn", "David Wilson");
+    setValue("trade3Email", "david@globalchemical.com");
+    setValue("trade3FaxNo", "(555) 555-6666");
+    setValue("trade3Phone", "(555) 555-6665");
+    setValue("businessDescription", "We are a mid-size chemical processing company specializing in industrial cleaning solutions, water treatment chemicals, and specialty coatings. Our facility processes approximately 500,000 gallons of chemicals monthly and serves clients in manufacturing, oil & gas, and municipal water treatment sectors.");
+    setValue("termsAgreed", true);
+  };
+  
   // Industry options
   const industries = [
     'Manufacturing', 'Healthcare', 'Education', 'Research & Development',
@@ -428,6 +486,28 @@ export default function CustomerApplicationForm() {
                 </p>
               </div>
             </div>
+
+            {/* Test Button - Development Only */}
+            <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-4 border border-red-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-red-800 mb-1">🧪 Development Testing</h3>
+                  <p className="text-sm text-red-600">Auto-fill form with test data for quick testing</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fillTestData}
+                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Fill Test Data
+                </button>
+              </div>
+            </div>
+
+
 
             {/* Company Information Section */}
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">

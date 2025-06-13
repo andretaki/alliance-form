@@ -4,44 +4,8 @@ import { customerApplications, tradeReferences } from '@/lib/schema';
 import { sendApplicationSummary } from '@/lib/email';
 import { customerApplicationSchema, type CustomerApplicationData } from '@/lib/validation';
 
-// GET method to fetch all applications for admin dashboard
-export async function GET() {
-  try {
-    if (!db) {
-      return NextResponse.json(
-        { error: 'Database connection not available' },
-        { status: 503 }
-      );
-    }
-
-    // Fetch all applications, ordered by creation date (newest first)
-    const applications = await db
-      .select({
-        id: customerApplications.id,
-        legalEntityName: customerApplications.legalEntityName,
-        taxEIN: customerApplications.taxEIN,
-        phoneNo: customerApplications.phoneNo,
-        buyerNameEmail: customerApplications.buyerNameEmail,
-        billToCityStateZip: customerApplications.billToCityStateZip,
-        termsAgreed: customerApplications.termsAgreed,
-        createdAt: customerApplications.createdAt,
-      })
-      .from(customerApplications)
-      .orderBy(customerApplications.createdAt);
-
-    return NextResponse.json({
-      success: true,
-      applications
-    });
-
-  } catch (error) {
-    console.error('Error fetching applications:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch applications' },
-      { status: 500 }
-    );
-  }
-}
+// This endpoint is no longer needed since we removed the admin dashboard
+// Applications are now handled directly via email notifications with full details
 
 export async function POST(request: NextRequest) {
   console.log('🚀 Applications API called');
@@ -188,7 +152,7 @@ export async function POST(request: NextRequest) {
         console.log('ℹ️ No trade references to insert');
       }
 
-      // Send email summary (async, don't wait for completion)
+      // Send basic application summary email first
       console.log('📧 Sending application summary email...');
       sendApplicationSummary({
         id: application.id,
@@ -196,6 +160,29 @@ export async function POST(request: NextRequest) {
       }).catch(error => {
         console.error('❌ Failed to send application summary email:', error);
         // Don't fail the API request if email fails
+      });
+
+      // 🤖 TRIGGER AI PROCESSING AGENT (async, don't wait for completion)
+      console.log('🤖 Triggering AI processing agent...');
+      import('@/lib/ai-processor').then(({ processApplicationWithAI, sendAIAnalysisReport }) => {
+        processApplicationWithAI(application.id)
+          .then(aiDecision => {
+            console.log('✅ AI processing completed:', aiDecision.decision);
+            // Send AI analysis report
+            return sendAIAnalysisReport({
+              id: application.id,
+              ...data
+            }, aiDecision);
+          })
+          .then(() => {
+            console.log('📧 AI analysis report sent successfully');
+          })
+          .catch(error => {
+            console.error('❌ AI processing failed:', error);
+            // Don't fail the API request if AI processing fails
+          });
+      }).catch(error => {
+        console.error('❌ Failed to load AI processor:', error);
       });
 
       console.log('🎉 Application submitted successfully!');
