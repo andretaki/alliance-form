@@ -371,23 +371,61 @@ export default function CustomerApplicationForm() {
 
         {!showSignature ? (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-            {/* PDF Download Option - Moved to Top */}
+            {/* PDF Download Options - Forms Available */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Prefer PDF?</h3>
-                  <p className="text-gray-600">Download, complete, and email the PDF version of this form to sales@alliancechemical.com</p>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Forms & Documents</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Credit Application PDF */}
+                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/40">
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-8 h-8 text-blue-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-800 mb-1">Credit Application</h4>
+                      <p className="text-sm text-gray-600 mb-3">Download and complete the PDF version</p>
+                      <a
+                        href="/Alliance Chemical Credit Applicaiton.pdf"
+                        download="Alliance-Chemical-Credit-Application.pdf"
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download PDF
+                      </a>
+                    </div>
+                  </div>
                 </div>
-                <a
-                  href="/Alliance Chemical Credit Applicaiton.pdf"
-                  download="Alliance-Chemical-Credit-Application.pdf"
-                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download PDF
-                </a>
+
+                {/* W9 Form */}
+                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/40">
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-8 h-8 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-800 mb-1">IRS Form W-9</h4>
+                      <p className="text-sm text-gray-600 mb-3">Tax form for business transactions</p>
+                      <a
+                        href="/W9-2025.pdf"
+                        download="W9-2025.pdf"
+                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download W-9
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <p className="text-sm text-amber-800">
+                  <strong>Note:</strong> Complete and email forms to <a href="mailto:sales@alliancechemical.com" className="text-amber-900 underline">sales@alliancechemical.com</a> if you prefer not to use the online form.
+                </p>
               </div>
             </div>
 
