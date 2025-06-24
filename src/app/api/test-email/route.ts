@@ -42,7 +42,7 @@ If you receive this email, Microsoft Graph is working correctly!`,
 
   try {
     console.log('📧 Sending test email via Microsoft Graph...');
-    const result = await sendEmail(testEmailData);
+    const result = await sendEmail(testEmailData, { immediate: true, type: 'test' });
     
     if (result.success) {
       return NextResponse.json({

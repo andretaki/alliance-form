@@ -1,4 +1,5 @@
 import { sendEmailViaGraph, isGraphConfigured, verifyGraphConfiguration } from '@/lib/microsoft-graph';
+import { queueEmail } from '@/lib/email-queue';
 
 // Validate critical email configuration in production
 if (process.env.NODE_ENV === 'production') {
@@ -105,10 +106,51 @@ async function sendEmailFallback(data: EmailDataBase) {
   };
 }
 
-export async function sendEmail(data: EmailDataBase) {
+export async function sendEmail(data: EmailDataBase, options?: {
+  applicationId?: number;
+  type?: 'application_summary' | 'ai_analysis' | 'approval_notification' | 'test';
+  immediate?: boolean; // Skip queue for immediate sending
+}) {
   console.log('📧 Email Service: Starting email send process');
-  console.log('📧 Email Service: Microsoft Graph Only Mode');
-
+  
+  const emailType = options?.type || 'test';
+  const useQueue = !options?.immediate;
+  
+  if (useQueue) {
+    console.log('📬 Using Vercel KV email queue');
+    
+    try {
+      const emailId = await queueEmail({
+        to: data.to,
+        subject: data.subject,
+        html: data.html,
+        text: data.text,
+        from: data.from,
+        applicationId: options?.applicationId,
+        type: emailType
+      });
+      
+      console.log(`✅ Email queued successfully: ${emailId}`);
+      
+      // Trigger queue processing asynchronously (fire-and-forget)
+      fetch('/api/process-emails', { method: 'POST' }).catch(error => {
+        console.warn('⚠️ Failed to trigger queue processing:', error);
+      });
+      
+      return { 
+        success: true, 
+        message: 'Email queued for sending',
+        emailId: emailId
+      };
+    } catch (queueError) {
+      console.error('❌ Failed to queue email, falling back to direct send:', queueError);
+      // Fall through to direct sending
+    }
+  }
+  
+  // Direct sending (fallback or immediate mode)
+  console.log('📧 Email Service: Direct sending mode');
+  
   // Detailed configuration verification
   const configCheck = verifyGraphConfiguration();
   console.log('🔍 Microsoft Graph Configuration Check:', configCheck);
@@ -117,7 +159,7 @@ export async function sendEmail(data: EmailDataBase) {
     console.error('❌ Microsoft Graph configuration issues:', configCheck.issues);
     console.log('📧 Using fallback email method...');
     return await sendEmailFallback(data);
-    }
+  }
 
   try {
     console.log('🔄 Sending email via Microsoft Graph...');
@@ -127,7 +169,7 @@ export async function sendEmail(data: EmailDataBase) {
     const emailTimeout = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('Email send timeout after 20 seconds')), 20000);
     });
-
+    
     const result = await Promise.race([emailPromise, emailTimeout]);
     
     if (result.success) {
@@ -205,6 +247,9 @@ The application details are included below for your review.
     subject: subject,
     text: textBody,
     html: htmlBody,
+  }, {
+    applicationId: applicationData.id,
+    type: 'application_summary'
   });
 }
 

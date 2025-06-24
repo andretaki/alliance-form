@@ -270,6 +270,9 @@ Alliance Chemical Team
           subject: subject,
           html: htmlBody,
           text: textBody,
+        }, {
+          applicationId: application.id,
+          type: 'approval_notification'
         });
         console.log(`✅ Approval email sent to ${email}`);
       } catch (error) {
@@ -359,6 +362,9 @@ Alliance Chemical Customer Service
           subject: subject,
           html: htmlBody,
           text: textBody,
+        }, {
+          applicationId: application.id,
+          type: 'approval_notification'
         });
         console.log(`✅ Denial email sent to ${email}`);
       } catch (error) {
