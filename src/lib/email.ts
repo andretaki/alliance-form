@@ -1,6 +1,5 @@
 import { sendEmailViaGraph, isGraphConfigured, verifyGraphConfiguration } from '@/lib/microsoft-graph';
-// MODIFICATION: Import both queueing and processing functions
-import { queueEmail, processEmailQueue } from '@/lib/email-queue';
+import { queueEmail, processEmailQueue, checkKVConnection } from '@/lib/email-queue';
 
 // Validate critical email configuration in production
 if (process.env.NODE_ENV === 'production') {
@@ -85,73 +84,133 @@ interface ShippingRequestData {
   termsAgreed?: boolean;
 }
 
-// Simple email fallback using built-in fetch for emergency cases
-async function sendEmailFallback(data: EmailDataBase) {
-  console.log('📧 FALLBACK: Using simple email service...');
+// Track KV availability globally
+let kvLastCheckTime = 0;
+let kvIsAvailable: boolean | null = null;
+const KV_CHECK_INTERVAL = 60000; // 1 minute
+
+async function shouldUseQueue(): Promise<boolean> {
+  // Check if we should even attempt to use the queue
+  const now = Date.now();
   
-  // Log the email content for debugging
-  console.log('📧 EMAIL CONTENT:', {
+  // Use cached result if recent
+  if (kvIsAvailable !== null && (now - kvLastCheckTime) < KV_CHECK_INTERVAL) {
+    return kvIsAvailable;
+  }
+  
+  // Check KV health
+  try {
+    console.log('🔍 Checking if KV queue should be used...');
+    kvIsAvailable = await checkKVConnection();
+    kvLastCheckTime = now;
+    console.log(`📊 KV queue available: ${kvIsAvailable}`);
+    return kvIsAvailable;
+  } catch (error) {
+    console.error('❌ KV health check failed:', error);
+    kvIsAvailable = false;
+    kvLastCheckTime = now;
+    return false;
+  }
+}
+
+// Enhanced fallback with multiple options
+async function sendEmailFallback(data: EmailDataBase) {
+  console.log('📧 FALLBACK: Attempting alternative email methods...');
+  
+  // Log email for debugging
+  console.log('📧 EMAIL DETAILS:', {
     to: data.to,
     subject: data.subject,
-    from: data.from || 'noreply@alliancechemical.com'
+    from: data.from || 'noreply@alliancechemical.com',
+    preview: data.text.substring(0, 100) + '...'
   });
   
-  console.log('📧 EMAIL BODY (first 200 chars):', data.text.substring(0, 200) + '...');
-  
-  // Try a simple HTTP-based email service as backup
-  try {
-    // You could integrate with services like:
-    // - Resend (https://resend.com)
-    // - Postmark (https://postmarkapp.com)
-    // - SendGrid (https://sendgrid.com)
-    // - Mailgun (https://www.mailgun.com)
-    
-    // For now, we'll use a webhook approach if available
-    if (process.env.WEBHOOK_EMAIL_URL) {
+  // Try webhook service first
+  if (process.env.WEBHOOK_EMAIL_URL) {
+    try {
       console.log('📧 FALLBACK: Trying webhook email service...');
       
       const response = await fetch(process.env.WEBHOOK_EMAIL_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.WEBHOOK_EMAIL_TOKEN || 'none'}`
+          'Authorization': `Bearer ${process.env.WEBHOOK_EMAIL_TOKEN || ''}`
         },
         body: JSON.stringify({
           to: data.to,
           subject: data.subject,
           html: data.html,
           text: data.text,
-          from: data.from || 'noreply@alliancechemical.com'
+          from: data.from || 'noreply@alliancechemical.com',
+          timestamp: new Date().toISOString()
         })
       });
       
       if (response.ok) {
-        console.log('✅ FALLBACK: Email sent via webhook service');
+        console.log('✅ FALLBACK: Email sent via webhook');
         return { 
           success: true, 
-          message: 'Email sent via webhook fallback service' 
+          message: 'Email sent via webhook service' 
         };
       } else {
-        console.warn('⚠️ FALLBACK: Webhook service failed:', await response.text());
+        const error = await response.text();
+        console.warn('⚠️ FALLBACK: Webhook failed:', error);
       }
+    } catch (error) {
+      console.error('❌ FALLBACK: Webhook error:', error);
     }
-    
-    // If no webhook service, just log and return success to not break the app
-    console.log('✅ FALLBACK: Email logged (no backup service configured)');
-    console.log('💡 FALLBACK: To enable actual email sending, configure Microsoft Graph or set WEBHOOK_EMAIL_URL');
-    
-    return { 
-      success: true, 
-      message: 'Email logged - configure Microsoft Graph or webhook service for actual sending' 
-    };
-    
-  } catch (error) {
-    console.error('❌ FALLBACK: Even fallback failed:', error);
-    return { 
-      success: true, // Still return success to not break the app
-      message: 'Email logged - all email services failed' 
-    };
   }
+  
+  // Try Vercel Edge Function if available
+  if (process.env.VERCEL_URL && process.env.EDGE_EMAIL_FUNCTION) {
+    try {
+      console.log('📧 FALLBACK: Trying Vercel Edge Function...');
+      
+      const response = await fetch(`https://${process.env.VERCEL_URL}/api/edge-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      if (response.ok) {
+        console.log('✅ FALLBACK: Email sent via Edge Function');
+        return { 
+          success: true, 
+          message: 'Email sent via Edge Function' 
+        };
+      }
+    } catch (error) {
+      console.error('❌ FALLBACK: Edge Function error:', error);
+    }
+  }
+  
+  // Log to console and return success (to not break the app)
+  console.log('📧 FALLBACK: Email logged to console');
+  console.log('========== EMAIL CONTENT ==========');
+  console.log('To:', data.to);
+  console.log('Subject:', data.subject);
+  console.log('From:', data.from || 'noreply@alliancechemical.com');
+  console.log('Text:', data.text);
+  console.log('===================================');
+  
+  // Store in KV as last resort if available
+  try {
+    const { kv } = await import('@vercel/kv');
+    await kv.set(`email_fallback_${Date.now()}`, {
+      ...data,
+      timestamp: new Date().toISOString(),
+      status: 'logged'
+    }, { ex: 86400 });
+    console.log('💾 Email stored in KV for later retrieval');
+  } catch (kvError) {
+    console.warn('⚠️ Could not store email in KV:', kvError);
+  }
+  
+  return { 
+    success: true, 
+    message: 'Email logged - configure email service for actual sending',
+    warning: 'No email service configured. Email was logged but not sent.'
+  };
 }
 
 export async function sendEmail(data: EmailDataBase, options?: {
@@ -160,14 +219,19 @@ export async function sendEmail(data: EmailDataBase, options?: {
   immediate?: boolean; // Skip queue for immediate sending
 }) {
   console.log('📧 Email Service: Starting email send process');
+  console.log(`📧 Email type: ${options?.type || 'test'}, Immediate: ${options?.immediate || false}`);
   
   const emailType = options?.type || 'test';
   const useQueue = !options?.immediate;
   
+  // Try to use queue if not immediate
   if (useQueue) {
-    console.log('📬 Using Vercel KV email queue');
+    const kvAvailable = await shouldUseQueue();
     
+    if (kvAvailable) {
     try {
+        console.log('📬 Attempting to queue email via Vercel KV...');
+        
       const emailId = await queueEmail({
         to: data.to,
         subject: data.subject,
@@ -180,47 +244,61 @@ export async function sendEmail(data: EmailDataBase, options?: {
       
       console.log(`✅ Email queued successfully: ${emailId}`);
       
-      // MODIFICATION: Replace the unreliable fetch call with a direct, non-blocking
-      // function call. This is much more reliable in a serverless environment.
-      console.log('🚀 Attempting to trigger email queue processing...');
-      
-      try {
-        // Use setImmediate to ensure this runs in the next tick
-        setImmediate(async () => {
-          try {
-            console.log('🎯 Queue trigger: Starting processing in next tick...');
-            await processEmailQueue();
-            console.log('✅ Queue trigger: Processing completed successfully');
-          } catch (error) {
-            console.warn('⚠️ Background email queue processing failed:', error);
-          }
-        });
-        console.log('✅ Email queue processing scheduled successfully');
-      } catch (syncError) {
-        console.error('❌ Failed to schedule email queue processing:', syncError);
-      }
+        // For Vercel, we can't reliably trigger background processing
+        // The queue will be processed by:
+        // 1. A separate cron job (recommended)
+        // 2. The next API call to /api/process-emails
+        // 3. Manual trigger
+        console.log('💡 Email queued. Will be processed by cron job or next queue processing trigger.');
+        
+        // Try to process queue in a non-blocking way
+        // This is best-effort and may not work in all Vercel deployments
+        if (process.env.NODE_ENV === 'production') {
+          // In production, rely on external triggers (cron, etc.)
+          console.log('📌 Production mode: Relying on external queue processor');
+        } else {
+          // In development, try to process immediately
+          setTimeout(() => {
+            processEmailQueue().catch(err => {
+              console.warn('⚠️ Background queue processing failed:', err);
+            });
+          }, 100);
+        }
       
       return { 
         success: true, 
         message: 'Email queued for sending',
-        emailId: emailId
+          emailId: emailId,
+          note: 'Email will be sent within 1-2 minutes via queue processor'
       };
+        
     } catch (queueError) {
-      console.error('❌ Failed to queue email, falling back to direct send:', queueError);
+        console.error('❌ Failed to queue email:', queueError);
+        console.log('📧 Falling back to direct send...');
+        
+        // Mark KV as unavailable for future requests
+        kvIsAvailable = false;
+        kvLastCheckTime = Date.now();
+        
       // Fall through to direct sending
+      }
+    } else {
+      console.log('⚠️ KV queue not available, using direct send');
     }
   }
   
-  // Direct sending (fallback or immediate mode)
-  console.log('📧 Email Service: Direct sending mode');
+  // Direct sending (immediate mode or fallback)
+  console.log('📧 Using direct email sending...');
   
-  // Detailed configuration verification
+  // Check Microsoft Graph configuration
   const configCheck = verifyGraphConfiguration();
-  console.log('🔍 Microsoft Graph Configuration Check:', configCheck);
+  console.log('🔍 Microsoft Graph Configuration:', {
+    isValid: configCheck.isValid,
+    issues: configCheck.issues.length
+  });
 
   if (!configCheck.isValid) {
-    console.error('❌ Microsoft Graph configuration issues:', configCheck.issues);
-    console.log('📧 Using fallback email method...');
+    console.error('❌ Microsoft Graph configuration invalid:', configCheck.issues);
     return await sendEmailFallback(data);
   }
 
@@ -240,12 +318,10 @@ export async function sendEmail(data: EmailDataBase, options?: {
       return result;
     } else {
       console.error('❌ Microsoft Graph failed:', result.message);
-      console.log('📧 Trying fallback email method...');
       return await sendEmailFallback(data);
     }
   } catch (error) {
     console.error('❌ Email service error:', error);
-    console.log('📧 Using fallback email method due to error...');
     return await sendEmailFallback(data);
   }
 }

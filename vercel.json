@@ -1,10 +1,25 @@
 {
   "functions": {
     "src/app/api/applications/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/process-emails/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/credit-approval/route.ts": {
+      "maxDuration": 30
     }
   },
-  "crons": [],
+  "crons": [
+    {
+      "path": "/api/process-emails",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cleanup-queue", 
+      "schedule": "0 */6 * * *"
+    }
+  ],
   "env": {
     "NODE_ENV": "production"
   }
