@@ -14,19 +14,13 @@ NODE_ENV=production
 DATABASE_URL=postgresql://username:password@host/database?sslmode=require
 ```
 
-### 📧 Email Service (Microsoft Graph - Preferred)
+### 📧 Email Service (Microsoft Graph - Required)
 ```bash
 MICROSOFT_GRAPH_CLIENT_ID=your-app-client-id
 MICROSOFT_GRAPH_CLIENT_SECRET=your-app-client-secret
 MICROSOFT_GRAPH_TENANT_ID=your-tenant-id
 MICROSOFT_GRAPH_USER_EMAIL=andre@alliancechemical.com
 EMAIL_FORM=andre@alliancechemical.com
-```
-
-### 📧 Email Service (Mailgun - Fallback)
-```bash
-MAIL_API_KEY=your_mailgun_api_key
-MAILGUN_DOMAIN=your_domain.com
 ```
 
 ### 🤖 AI Processing (OpenAI)
@@ -122,9 +116,10 @@ AWS_S3_BUCKET_NAME=your_bucket_name
 - Verify OpenAI API key is valid (optional but recommended)
 
 ### Email Not Working
-- Verify Mailgun domain and API key
+- Verify Microsoft Graph credentials are set in Vercel environment variables
 - Check EMAIL_FORM environment variable
-- Ensure Mailgun domain is verified
+- Ensure Azure app has Mail.Send application permissions with admin consent
+- Verify MICROSOFT_GRAPH_USER_EMAIL has Exchange Online license
 
 ### AI Processing Issues
 - OpenAI API key is optional - system works without it

@@ -1,36 +1,4 @@
-import formData from 'form-data';
-import Mailgun from 'mailgun.js';
 import { sendEmailViaGraph, isGraphConfigured } from '@/lib/microsoft-graph';
-
-// Initialize Mailgun client with robust error handling
-const mailgun = new Mailgun(formData);
-let mg: any | null = null;
-
-// Robust environment variable validation for Mailgun
-if (process.env.NODE_ENV === 'production' && (!process.env.MAIL_API_KEY || !process.env.MAILGUN_DOMAIN)) {
-  console.warn('Mailgun API key or domain not provided. Will try Microsoft Graph first.');
-} else if (!process.env.MAIL_API_KEY || !process.env.MAILGUN_DOMAIN) {
-  console.warn('Mailgun API key or domain not provided. Will try Microsoft Graph first.');
-}
-
-// Initialize Mailgun client only if credentials are available
-if (process.env.MAIL_API_KEY && process.env.MAILGUN_DOMAIN) {
-  try {
-    mg = mailgun.client({
-      username: 'api',
-      key: process.env.MAIL_API_KEY,
-    });
-    console.log('Mailgun client initialized successfully');
-  } catch (error) {
-    const message = `Failed to initialize Mailgun client: ${error}`;
-    console.error(message);
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('Mailgun failed to initialize, will use Microsoft Graph if available');
-    }
-  }
-}
-
-// OpenAI processing is now handled in the separate ai-processor module
 
 // Validate critical email configuration in production
 if (process.env.NODE_ENV === 'production') {
@@ -116,41 +84,35 @@ interface ShippingRequestData {
 }
 
 export async function sendEmail(data: EmailDataBase) {
-  // For Vercel serverless, try Mailgun first (more reliable)
-  if (mg && process.env.MAILGUN_DOMAIN) {
-    console.log('🔄 Attempting to send email via Mailgun...');
-    try {
-      const messageData = {
-        from: data.from || `Alliance Chemical Forms <noreply@${process.env.MAILGUN_DOMAIN}>`,
-        to: data.to,
-        subject: data.subject,
-        text: data.text,
-        html: data.html,
-      };
+  console.log('📧 Email Service: Starting email send process');
+  console.log('📧 Email Service: Microsoft Graph Only Mode');
 
-      const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, messageData);
-      console.log('✅ Email sent successfully via Mailgun');
-      return { success: true, result };
-    } catch (error) {
-      console.error('⚠️ Mailgun failed, trying Microsoft Graph fallback:', error);
-    }
+  // Check Microsoft Graph configuration
+  if (!isGraphConfigured()) {
+    console.error('❌ Microsoft Graph not configured properly');
+    console.error('❌ Required env vars: MICROSOFT_GRAPH_CLIENT_ID, MICROSOFT_GRAPH_CLIENT_SECRET, MICROSOFT_GRAPH_TENANT_ID, MICROSOFT_GRAPH_USER_EMAIL');
+    return { success: false, message: 'Microsoft Graph service not configured' };
   }
 
-  // Fallback to Microsoft Graph if Mailgun failed
-  if (isGraphConfigured()) {
-    console.log('🔄 Attempting to send email via Microsoft Graph (fallback)...');
-    const graphResult = await sendEmailViaGraph(data);
-    if (graphResult.success) {
-      console.log('✅ Email sent successfully via Microsoft Graph (fallback)');
-      return graphResult;
+  try {
+    console.log('🔄 Sending email via Microsoft Graph...');
+    const result = await sendEmailViaGraph(data);
+    
+    if (result.success) {
+      console.log('✅ Email sent successfully via Microsoft Graph');
+      return result;
     } else {
-      console.warn('⚠️ Microsoft Graph also failed:', graphResult.message);
+      console.error('❌ Microsoft Graph failed:', result.message);
+      return result;
     }
+  } catch (error) {
+    console.error('❌ Email service error:', error);
+    return { 
+      success: false, 
+      message: 'Failed to send email via Microsoft Graph', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
-
-  // Both failed
-  console.error('❌ Both Mailgun and Microsoft Graph failed');
-  return { success: false, message: 'Both email services failed - check configuration' };
 }
 
 export async function sendApplicationSummary(applicationData: ApplicationData) {
