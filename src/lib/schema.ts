@@ -109,4 +109,27 @@ export const internationalShippingRequests = allianceChemicalSchema.table('inter
   status: text('status').default('pending'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-}); 
+});
+
+// Credit Approval Decisions table
+export const creditApprovals = allianceChemicalSchema.table('credit_approvals', {
+  id: serial('id').primaryKey(),
+  applicationId: integer('application_id').references(() => customerApplications.id).notNull(),
+  decision: text('decision').notNull(), // 'APPROVED', 'DENIED', 'PENDING'
+  approvedAmount: integer('approved_amount'), // Amount in cents
+  approvedTerms: text('approved_terms'), // e.g. 'Net 30'
+  approverEmail: text('approver_email'),
+  approverNotes: text('approver_notes'),
+  customerNotified: boolean('customer_notified').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Export types for TypeScript inference
+export type CustomerApplication = typeof customerApplications.$inferSelect;
+export type TradeReference = typeof tradeReferences.$inferSelect;
+export type Terms = typeof terms.$inferSelect;
+export type DigitalSignature = typeof digitalSignatures.$inferSelect;
+export type VendorForm = typeof vendorForms.$inferSelect;
+export type InternationalShippingRequest = typeof internationalShippingRequests.$inferSelect;
+export type CreditApproval = typeof creditApprovals.$inferSelect; 
