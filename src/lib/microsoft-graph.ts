@@ -18,6 +18,58 @@ interface GraphEmailData {
 let graphClient: Client | null = null;
 let credential: ClientSecretCredential | null = null;
 
+// Direct HTTP token acquisition for better serverless reliability
+async function getTokenDirectly(): Promise<string | null> {
+  try {
+    console.log('🔄 Direct token: Making HTTP request to Azure...');
+    
+    const tokenUrl = `https://login.microsoftonline.com/${MICROSOFT_GRAPH_TENANT_ID}/oauth2/v2.0/token`;
+    const params = new URLSearchParams({
+      client_id: MICROSOFT_GRAPH_CLIENT_ID!,
+      client_secret: MICROSOFT_GRAPH_CLIENT_SECRET!,
+      scope: 'https://graph.microsoft.com/.default',
+      grant_type: 'client_credentials'
+    });
+
+    // Create timeout controller for better compatibility
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn('⏰ Direct token: Request timed out after 4 seconds');
+      controller.abort();
+    }, 4000);
+
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params,
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Direct token: HTTP error:', response.status, errorText);
+      return null;
+    }
+
+    const tokenData = await response.json();
+    
+    if (tokenData.access_token) {
+      console.log('✅ Direct token: Successfully obtained token');
+      return tokenData.access_token;
+    } else {
+      console.error('❌ Direct token: No access_token in response:', tokenData);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Direct token: Request failed:', error);
+    return null;
+  }
+}
+
 // Initialize Microsoft Graph client optimized for Vercel serverless
 function initializeGraphClient(): Client | null {
   if (!MICROSOFT_GRAPH_CLIENT_ID || !MICROSOFT_GRAPH_CLIENT_SECRET || !MICROSOFT_GRAPH_TENANT_ID) {
@@ -49,13 +101,22 @@ function initializeGraphClient(): Client | null {
               hasSecret: !!MICROSOFT_GRAPH_CLIENT_SECRET
             });
             
-            // More aggressive timeout for serverless environment
+            // Try direct HTTP approach first (more reliable in serverless)
+            console.log('🔄 Microsoft Graph: Trying direct HTTP token request...');
+            const directTokenResult = await getTokenDirectly();
+            if (directTokenResult) {
+              console.log('✅ Microsoft Graph: Access token obtained via direct HTTP');
+              return directTokenResult;
+            }
+            
+            // Fall back to Azure SDK with aggressive timeout
+            console.log('⚠️ Microsoft Graph: Direct HTTP failed, trying Azure SDK...');
             const tokenPromise = credential!.getToken('https://graph.microsoft.com/.default');
             const tokenTimeout = new Promise<never>((_, reject) => {
               setTimeout(() => {
-                console.error('⏰ Microsoft Graph: Token acquisition timed out after 5 seconds');
-                reject(new Error('Token acquisition timeout after 5 seconds'));
-              }, 5000);
+                console.error('⏰ Microsoft Graph: Token acquisition timed out after 3 seconds');
+                reject(new Error('Token acquisition timeout after 3 seconds'));
+              }, 3000);
             });
             
             console.log('⏳ Microsoft Graph: Waiting for token response...');
