@@ -31,12 +31,12 @@ async function getTokenDirectly(): Promise<string | null> {
       grant_type: 'client_credentials'
     });
 
-    // Create timeout controller for better compatibility
+    // Create timeout controller for better compatibility - more aggressive timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.warn('⏰ Direct token: Request timed out after 4 seconds');
+      console.warn('⏰ Direct token: Request timed out after 2 seconds');
       controller.abort();
-    }, 4000);
+    }, 2000);
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
