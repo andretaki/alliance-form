@@ -43,21 +43,37 @@ function initializeGraphClient(): Client | null {
         getAccessToken: async () => {
           try {
             console.log('🔑 Microsoft Graph: Getting access token...');
-            
-            // Add timeout specifically for token acquisition
-            const tokenPromise = credential!.getToken('https://graph.microsoft.com/.default');
-            const tokenTimeout = new Promise<never>((_, reject) => {
-              setTimeout(() => reject(new Error('Token acquisition timeout after 8 seconds')), 8000);
+            console.log('🔍 Microsoft Graph: Credential config check:', {
+              tenantId: MICROSOFT_GRAPH_TENANT_ID?.substring(0, 8) + '...',
+              clientId: MICROSOFT_GRAPH_CLIENT_ID?.substring(0, 8) + '...',
+              hasSecret: !!MICROSOFT_GRAPH_CLIENT_SECRET
             });
             
+            // More aggressive timeout for serverless environment
+            const tokenPromise = credential!.getToken('https://graph.microsoft.com/.default');
+            const tokenTimeout = new Promise<never>((_, reject) => {
+              setTimeout(() => {
+                console.error('⏰ Microsoft Graph: Token acquisition timed out after 5 seconds');
+                reject(new Error('Token acquisition timeout after 5 seconds'));
+              }, 5000);
+            });
+            
+            console.log('⏳ Microsoft Graph: Waiting for token response...');
             const tokenResponse = await Promise.race([tokenPromise, tokenTimeout]);
+            
+            if (!tokenResponse?.token) {
+              console.error('❌ Microsoft Graph: No token received in response');
+              throw new Error('No token received from Azure');
+            }
+            
             console.log('✅ Microsoft Graph: Access token obtained successfully');
-            return tokenResponse?.token || '';
+            return tokenResponse.token;
           } catch (tokenError) {
             console.error('❌ Microsoft Graph: Token acquisition failed:', {
               error: tokenError,
               message: tokenError instanceof Error ? tokenError.message : 'Unknown token error',
-              name: tokenError instanceof Error ? tokenError.name : 'Unknown'
+              name: tokenError instanceof Error ? tokenError.name : 'Unknown',
+              stack: tokenError instanceof Error ? tokenError.stack?.substring(0, 200) : 'No stack'
             });
             throw tokenError;
           }
@@ -95,17 +111,38 @@ export async function sendEmailViaGraph(data: GraphEmailData): Promise<{success:
     subject: data.subject
   });
 
-  const client = getGraphClient();
-  if (!client) {
-    console.warn('❌ Microsoft Graph not configured. Skipping email send for:', data.subject);
-    return { success: false, message: 'Microsoft Graph service not configured' };
-  }
+  // Add overall timeout for the entire email send process
+  const overallTimeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      console.error('⏰ Microsoft Graph: Overall email send process timed out after 10 seconds');
+      reject(new Error('Overall Microsoft Graph process timeout'));
+    }, 10000);
+  });
 
-  if (!MICROSOFT_GRAPH_USER_EMAIL) {
-    console.error('❌ MICROSOFT_GRAPH_USER_EMAIL not configured');
-    return { success: false, message: 'Sender email not configured' };
-  }
+  try {
+    const emailSendProcess = async () => {
+      const client = getGraphClient();
+      if (!client) {
+        console.warn('❌ Microsoft Graph not configured. Skipping email send for:', data.subject);
+        return { success: false, message: 'Microsoft Graph service not configured' };
+      }
 
+      if (!MICROSOFT_GRAPH_USER_EMAIL) {
+        console.error('❌ MICROSOFT_GRAPH_USER_EMAIL not configured');
+        return { success: false, message: 'Sender email not configured' };
+      }
+
+      return await sendEmailInternal(client, data);
+    };
+
+    return await Promise.race([emailSendProcess(), overallTimeoutPromise]);
+  } catch (error) {
+    console.error('❌ Microsoft Graph: Process failed with timeout or error:', error);
+    return { success: false, message: 'Microsoft Graph process failed or timed out', error };
+  }
+}
+
+async function sendEmailInternal(client: Client, data: GraphEmailData): Promise<{success: boolean, result?: any, message?: string, error?: any}> {
   try {
     console.log('🔄 Microsoft Graph: Preparing email message...');
     // Prepare email message using personal mailbox (andre@alliancechemical.com)
@@ -133,7 +170,7 @@ export async function sendEmailViaGraph(data: GraphEmailData): Promise<{success:
     
     // Add shorter timeout for Vercel serverless environment
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Microsoft Graph API timeout after 15 seconds')), 15000);
+      setTimeout(() => reject(new Error('Microsoft Graph API timeout after 8 seconds')), 8000);
     });
 
     // Send email using Microsoft Graph with timeout and retry
