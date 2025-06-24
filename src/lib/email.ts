@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 
@@ -32,21 +31,7 @@ if (process.env.MAIL_API_KEY && process.env.MAILGUN_DOMAIN) {
   }
 }
 
-// Initialize OpenAI (optional) with robust error handling
-let openai: OpenAI | null = null;
-if (process.env.OPENAI_API_KEY) {
-  try {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-    console.log('OpenAI client initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize OpenAI client:', error);
-    console.warn('AI analysis features will be disabled due to OpenAI initialization error.');
-  }
-} else {
-  console.warn('OPENAI_API_KEY not provided. AI analysis features will be disabled for applicable emails.');
-}
+// OpenAI processing is now handled in the separate ai-processor module
 
 // Validate critical email configuration in production
 if (process.env.NODE_ENV === 'production') {

@@ -27,8 +27,10 @@ interface CreditDecision {
 export async function processApplicationWithAI(applicationId: number): Promise<CreditDecision> {
   console.log(`🤖 AI PROCESSOR: Starting analysis for application #${applicationId}`);
 
+  // Vercel environment validation
   if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key not configured');
+    console.warn('OpenAI API key not configured - using fallback analysis');
+    // Continue with fallback instead of throwing
   }
 
   if (!db) {
@@ -170,6 +172,28 @@ Respond with ONLY this JSON format (no markdown formatting):
 }`;
 
   console.log('🤖 AI PROCESSOR: Calling OpenAI for narrative generation...');
+
+  // Only call OpenAI if API key is available
+  if (!OPENAI_API_KEY) {
+    console.log('🤖 AI PROCESSOR: Skipping OpenAI call - using system analysis only');
+    
+    // Fallback to system-only decision without AI narrative
+    const result: CreditDecision = {
+      decision: finalDecision,
+      creditScore: creditScore.score,
+      riskLevel: finalRiskLevel,
+      creditLimit: finalLimit,
+      paymentTerms: finalTerms,
+      reasoning: `Automated credit analysis completed. Decision: ${finalDecision} based on credit score of ${creditScore.score}/850. Business verification: ${businessVerification.isValid ? 'Valid' : 'Failed'}. Domain analysis: ${domainVerification.isValid ? 'Clean' : 'Issues detected'}.`,
+      conditions: finalConditions,
+      additionalNotes: `Verification Summary: Business registration ${businessVerification.isValid ? 'valid' : 'invalid'}, Domain ${domainVerification.isValid ? 'clean' : 'flagged'}.\n\nScore Breakdown: ${Object.entries(creditScore.breakdown).map(([k,v]) => `${k}: ${v}`).join(', ')}`,
+      verificationSummary: `Business: ${businessVerification.status}, Domain: ${domainVerification.isValid ? 'Valid' : 'Issues'}, Phone: ${phoneValidation.type}`,
+      scoreBreakdown: creditScore.breakdown
+    };
+
+    console.log('✅ AI PROCESSOR: System analysis complete for application #' + applicationId);
+    return result;
+  }
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "src/app/api/applications/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [],
+  "env": {
+    "NODE_ENV": "production"
+  }
+} 

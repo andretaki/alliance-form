@@ -162,9 +162,14 @@ export async function POST(request: NextRequest) {
         // Don't fail the API request if email fails
       });
 
-      // 🤖 TRIGGER AI PROCESSING AGENT (async, don't wait for completion)
+      // 🤖 TRIGGER AI PROCESSING AGENT (Vercel-compatible async processing)
       console.log('🤖 Triggering AI processing agent...');
-      import('@/lib/ai-processor').then(({ processApplicationWithAI, sendAIAnalysisReport }) => {
+      
+      // Import and process immediately (Vercel serverless compatible)
+      try {
+        const { processApplicationWithAI, sendAIAnalysisReport } = await import('@/lib/ai-processor');
+        
+        // Process in background without blocking response (fire-and-forget)
         processApplicationWithAI(application.id)
           .then(aiDecision => {
             console.log('✅ AI processing completed:', aiDecision.decision);
@@ -181,9 +186,10 @@ export async function POST(request: NextRequest) {
             console.error('❌ AI processing failed:', error);
             // Don't fail the API request if AI processing fails
           });
-      }).catch(error => {
-        console.error('❌ Failed to load AI processor:', error);
-      });
+      } catch (importError) {
+        console.error('❌ Failed to load AI processor:', importError);
+        // Continue without AI processing if module fails to load
+      }
 
       console.log('🎉 Application submitted successfully!');
       return NextResponse.json({
