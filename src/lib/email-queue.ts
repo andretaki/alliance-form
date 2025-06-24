@@ -72,7 +72,10 @@ export async function processEmailQueue(): Promise<{
       processed++;
       
       try {
-        const email: QueuedEmail = JSON.parse(emailJson as string);
+        // Handle both string and object responses from KV
+        const email: QueuedEmail = typeof emailJson === 'string' 
+          ? JSON.parse(emailJson) 
+          : emailJson as QueuedEmail;
         console.log(`📧 Processing email: ${email.id} (attempt ${email.attempts + 1}) to ${email.to}`);
         
         // Import email service dynamically to avoid circular dependencies
@@ -106,7 +109,10 @@ export async function processEmailQueue(): Promise<{
         console.error(`❌ Failed to send email:`, emailError);
         
         try {
-          const email: QueuedEmail = JSON.parse(emailJson as string);
+          // Handle both string and object responses from KV
+          const email: QueuedEmail = typeof emailJson === 'string' 
+            ? JSON.parse(emailJson) 
+            : emailJson as QueuedEmail;
           email.attempts++;
           email.lastAttempt = new Date().toISOString();
           
