@@ -1,5 +1,21 @@
 import { kv } from '@vercel/kv';
 
+// Test KV connection
+async function testKVConnection(): Promise<boolean> {
+  try {
+    console.log('🔍 Testing KV connection...');
+    const testKey = `test_${Date.now()}`;
+    await kv.set(testKey, 'test_value', { ex: 10 }); // 10 seconds expiry
+    const result = await kv.get(testKey);
+    await kv.del(testKey); // cleanup
+    console.log('✅ KV connection test successful');
+    return result === 'test_value';
+  } catch (error) {
+    console.error('❌ KV connection test failed:', error);
+    return false;
+  }
+}
+
 interface QueuedEmail {
   id: string;
   to: string;
@@ -38,14 +54,37 @@ export async function queueEmail(emailData: {
   };
 
   console.log(`📬 Queueing email: ${emailId} (${emailData.type})`);
+  console.log('🔍 Queue: Email data prepared:', {
+    id: emailId,
+    to: emailData.to,
+    type: emailData.type,
+    hasHtml: !!emailData.html,
+    hasText: !!emailData.text
+  });
+  
+  // Test KV connection first
+  const kvWorking = await testKVConnection();
+  if (!kvWorking) {
+    console.warn('⚠️ KV not available, falling back to direct send');
+    throw new Error('KV service not available - falling back to direct send');
+  }
   
   try {
+    console.log('🔍 Queue: Attempting KV lpush operation...');
+    console.log('🔍 Queue: Using queue key:', EMAIL_QUEUE_KEY);
+    
     // Add to KV queue
-    await kv.lpush(EMAIL_QUEUE_KEY, JSON.stringify(queuedEmail));
+    const result = await kv.lpush(EMAIL_QUEUE_KEY, JSON.stringify(queuedEmail));
+    console.log('✅ Queue: KV lpush completed, result:', result);
     console.log(`✅ Email queued successfully: ${emailId}`);
     return emailId;
   } catch (error) {
-    console.error('❌ Failed to queue email:', error);
+    console.error('❌ Failed to queue email:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack?.substring(0, 300) : 'No stack'
+    });
     throw error;
   }
 }
