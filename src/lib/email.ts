@@ -116,41 +116,41 @@ interface ShippingRequestData {
 }
 
 export async function sendEmail(data: EmailDataBase) {
-  // Try Microsoft Graph first if configured
-  if (isGraphConfigured()) {
-    console.log('🔄 Attempting to send email via Microsoft Graph...');
-    const graphResult = await sendEmailViaGraph(data);
-    if (graphResult.success) {
-      console.log('✅ Email sent successfully via Microsoft Graph');
-      return graphResult;
-    } else {
-      console.warn('⚠️ Microsoft Graph failed, trying Mailgun fallback:', graphResult.message);
+  // For Vercel serverless, try Mailgun first (more reliable)
+  if (mg && process.env.MAILGUN_DOMAIN) {
+    console.log('🔄 Attempting to send email via Mailgun...');
+    try {
+      const messageData = {
+        from: data.from || `Alliance Chemical Forms <noreply@${process.env.MAILGUN_DOMAIN}>`,
+        to: data.to,
+        subject: data.subject,
+        text: data.text,
+        html: data.html,
+      };
+
+      const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, messageData);
+      console.log('✅ Email sent successfully via Mailgun');
+      return { success: true, result };
+    } catch (error) {
+      console.error('⚠️ Mailgun failed, trying Microsoft Graph fallback:', error);
     }
   }
 
-  // Fallback to Mailgun
-  if (!mg || !process.env.MAILGUN_DOMAIN) {
-    console.error('❌ Neither Microsoft Graph nor Mailgun is configured properly');
-    return { success: false, message: 'No email service available - both Microsoft Graph and Mailgun failed' };
+  // Fallback to Microsoft Graph if Mailgun failed
+  if (isGraphConfigured()) {
+    console.log('🔄 Attempting to send email via Microsoft Graph (fallback)...');
+    const graphResult = await sendEmailViaGraph(data);
+    if (graphResult.success) {
+      console.log('✅ Email sent successfully via Microsoft Graph (fallback)');
+      return graphResult;
+    } else {
+      console.warn('⚠️ Microsoft Graph also failed:', graphResult.message);
+    }
   }
 
-  try {
-    console.log('🔄 Attempting to send email via Mailgun fallback...');
-    const messageData = {
-      from: data.from || `Alliance Chemical Forms <noreply@${process.env.MAILGUN_DOMAIN}>`,
-      to: data.to,
-      subject: data.subject,
-      text: data.text,
-      html: data.html,
-    };
-
-    const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, messageData);
-    console.log('✅ Email sent successfully via Mailgun (fallback)');
-    return { success: true, result };
-  } catch (error) {
-    console.error('❌ Error sending email via Mailgun:', error);
-    return { success: false, message: 'Both Microsoft Graph and Mailgun failed to send email', error };
-  }
+  // Both failed
+  console.error('❌ Both Mailgun and Microsoft Graph failed');
+  return { success: false, message: 'Both email services failed - check configuration' };
 }
 
 export async function sendApplicationSummary(applicationData: ApplicationData) {

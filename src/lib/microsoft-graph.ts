@@ -98,12 +98,20 @@ export async function sendEmailViaGraph(data: GraphEmailData): Promise<{success:
     };
 
     console.log('🔄 Microsoft Graph: Calling API to send email...');
-    // Send email using Microsoft Graph
-    const result = await graphClient
+    
+    // Add timeout for Vercel serverless environment
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Microsoft Graph API timeout after 10 seconds')), 10000);
+    });
+
+    // Send email using Microsoft Graph with timeout
+    const apiPromise = graphClient
       .api(`/users/${MICROSOFT_GRAPH_USER_EMAIL}/sendMail`)
       .post({
         message: message
       });
+
+    const result = await Promise.race([apiPromise, timeoutPromise]);
 
     console.log('✅ Microsoft Graph: Email sent successfully!');
     return { success: true, result };
@@ -113,6 +121,12 @@ export async function sendEmailViaGraph(data: GraphEmailData): Promise<{success:
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
+    
+    // Handle timeout specifically
+    if (error instanceof Error && error.message.includes('timeout')) {
+      console.error('⏰ Microsoft Graph: API call timed out (likely Vercel serverless issue)');
+      return { success: false, message: 'Microsoft Graph timed out - will try Mailgun fallback', error };
+    }
     
     // Handle specific Graph API errors
     if (error && typeof error === 'object' && 'code' in error) {
