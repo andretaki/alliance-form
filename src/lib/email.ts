@@ -182,9 +182,23 @@ export async function sendEmail(data: EmailDataBase, options?: {
       
       // MODIFICATION: Replace the unreliable fetch call with a direct, non-blocking
       // function call. This is much more reliable in a serverless environment.
-      processEmailQueue().catch(error => {
-        console.warn('⚠️ Background email queue processing failed:', error);
-      });
+      console.log('🚀 Attempting to trigger email queue processing...');
+      
+      try {
+        // Use setImmediate to ensure this runs in the next tick
+        setImmediate(async () => {
+          try {
+            console.log('🎯 Queue trigger: Starting processing in next tick...');
+            await processEmailQueue();
+            console.log('✅ Queue trigger: Processing completed successfully');
+          } catch (error) {
+            console.warn('⚠️ Background email queue processing failed:', error);
+          }
+        });
+        console.log('✅ Email queue processing scheduled successfully');
+      } catch (syncError) {
+        console.error('❌ Failed to schedule email queue processing:', syncError);
+      }
       
       return { 
         success: true, 

@@ -57,6 +57,7 @@ export async function processEmailQueue(): Promise<{
   errors: string[];
 }> {
   console.log('🔄 Processing email queue...');
+  console.log('🔍 Queue processor: Function called successfully');
   
   let processed = 0;
   let sent = 0;
@@ -64,6 +65,7 @@ export async function processEmailQueue(): Promise<{
   const errors: string[] = [];
 
   try {
+    console.log('🔍 Queue processor: Checking queue for emails...');
     // Process up to 10 emails at a time
     for (let i = 0; i < 10; i++) {
       const emailJson = await kv.rpop(EMAIL_QUEUE_KEY);
