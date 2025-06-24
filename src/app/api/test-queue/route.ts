@@ -72,7 +72,13 @@ If you receive this, the KV email queue is working perfectly!`,
       console.log(`✅ Test email queued: ${emailId}`);
       
       // Trigger processing
-      fetch('/api/process-emails', { method: 'POST' }).catch(error => {
+      const baseUrl = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}` 
+        : process.env.NODE_ENV === 'production' 
+          ? 'https://creditapp.alliancechemical.com'
+          : 'http://localhost:3000';
+      
+      fetch(`${baseUrl}/api/process-emails`, { method: 'POST' }).catch(error => {
         console.warn('⚠️ Failed to trigger queue processing:', error);
       });
       

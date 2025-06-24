@@ -133,7 +133,13 @@ export async function sendEmail(data: EmailDataBase, options?: {
       console.log(`✅ Email queued successfully: ${emailId}`);
       
       // Trigger queue processing asynchronously (fire-and-forget)
-      fetch('/api/process-emails', { method: 'POST' }).catch(error => {
+      const baseUrl = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}` 
+        : process.env.NODE_ENV === 'production' 
+          ? 'https://creditapp.alliancechemical.com'
+          : 'http://localhost:3000';
+      
+      fetch(`${baseUrl}/api/process-emails`, { method: 'POST' }).catch(error => {
         console.warn('⚠️ Failed to trigger queue processing:', error);
       });
       

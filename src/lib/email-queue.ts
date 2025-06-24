@@ -73,7 +73,7 @@ export async function processEmailQueue(): Promise<{
       
       try {
         const email: QueuedEmail = JSON.parse(emailJson as string);
-        console.log(`📧 Processing email: ${email.id} (attempt ${email.attempts + 1})`);
+        console.log(`📧 Processing email: ${email.id} (attempt ${email.attempts + 1}) to ${email.to}`);
         
         // Import email service dynamically to avoid circular dependencies
         const { sendEmailViaGraph } = await import('@/lib/microsoft-graph');
@@ -87,7 +87,7 @@ export async function processEmailQueue(): Promise<{
         });
 
         if (result.success) {
-          console.log(`✅ Email sent successfully: ${email.id}`);
+          console.log(`✅ Email sent successfully: ${email.id} to ${email.to}`);
           sent++;
           
           // Mark as sent in KV for tracking
@@ -98,6 +98,7 @@ export async function processEmailQueue(): Promise<{
           }, { ex: 86400 }); // Keep for 24 hours
           
         } else {
+          console.error(`❌ Email sending failed: ${email.id} - ${result.message}`);
           throw new Error(result.message || 'Email sending failed');
         }
         
@@ -122,7 +123,9 @@ export async function processEmailQueue(): Promise<{
           }
         } catch (retryError) {
           console.error('❌ Failed to handle email retry:', retryError);
-          errors.push(`Failed to handle retry: ${retryError instanceof Error ? retryError.message : 'Unknown error'}`);
+          const errorMessage = retryError instanceof Error ? retryError.message : 
+            (typeof retryError === 'string' ? retryError : JSON.stringify(retryError));
+          errors.push(`Failed to handle retry for email: ${errorMessage}`);
           failed++;
         }
       }
