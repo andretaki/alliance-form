@@ -43,11 +43,22 @@ function initializeGraphClient(): Client | null {
         getAccessToken: async () => {
           try {
             console.log('🔑 Microsoft Graph: Getting access token...');
-            const tokenResponse = await credential!.getToken('https://graph.microsoft.com/.default');
-            console.log('✅ Microsoft Graph: Access token obtained');
+            
+            // Add timeout specifically for token acquisition
+            const tokenPromise = credential!.getToken('https://graph.microsoft.com/.default');
+            const tokenTimeout = new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error('Token acquisition timeout after 8 seconds')), 8000);
+            });
+            
+            const tokenResponse = await Promise.race([tokenPromise, tokenTimeout]);
+            console.log('✅ Microsoft Graph: Access token obtained successfully');
             return tokenResponse?.token || '';
           } catch (tokenError) {
-            console.error('❌ Microsoft Graph: Token error:', tokenError);
+            console.error('❌ Microsoft Graph: Token acquisition failed:', {
+              error: tokenError,
+              message: tokenError instanceof Error ? tokenError.message : 'Unknown token error',
+              name: tokenError instanceof Error ? tokenError.name : 'Unknown'
+            });
             throw tokenError;
           }
         }
@@ -187,4 +198,40 @@ export async function sendEmailViaGraph(data: GraphEmailData): Promise<{success:
 
 export function isGraphConfigured(): boolean {
   return !!(MICROSOFT_GRAPH_CLIENT_ID && MICROSOFT_GRAPH_CLIENT_SECRET && MICROSOFT_GRAPH_TENANT_ID && MICROSOFT_GRAPH_USER_EMAIL);
+}
+
+export function verifyGraphConfiguration(): { 
+  isValid: boolean; 
+  issues: string[]; 
+  config: Record<string, boolean> 
+} {
+  const issues: string[] = [];
+  const config = {
+    hasClientId: !!MICROSOFT_GRAPH_CLIENT_ID,
+    hasClientSecret: !!MICROSOFT_GRAPH_CLIENT_SECRET,
+    hasTenantId: !!MICROSOFT_GRAPH_TENANT_ID,
+    hasUserEmail: !!MICROSOFT_GRAPH_USER_EMAIL
+  };
+
+  if (!MICROSOFT_GRAPH_CLIENT_ID) issues.push('MICROSOFT_GRAPH_CLIENT_ID is missing');
+  if (!MICROSOFT_GRAPH_CLIENT_SECRET) issues.push('MICROSOFT_GRAPH_CLIENT_SECRET is missing');  
+  if (!MICROSOFT_GRAPH_TENANT_ID) issues.push('MICROSOFT_GRAPH_TENANT_ID is missing');
+  if (!MICROSOFT_GRAPH_USER_EMAIL) issues.push('MICROSOFT_GRAPH_USER_EMAIL is missing');
+
+  // Validate format
+  if (MICROSOFT_GRAPH_CLIENT_ID && !MICROSOFT_GRAPH_CLIENT_ID.match(/^[a-f0-9-]{36}$/i)) {
+    issues.push('MICROSOFT_GRAPH_CLIENT_ID format invalid (should be GUID)');
+  }
+  if (MICROSOFT_GRAPH_TENANT_ID && !MICROSOFT_GRAPH_TENANT_ID.match(/^[a-f0-9-]{36}$/i)) {
+    issues.push('MICROSOFT_GRAPH_TENANT_ID format invalid (should be GUID)');
+  }
+  if (MICROSOFT_GRAPH_USER_EMAIL && !MICROSOFT_GRAPH_USER_EMAIL.includes('@')) {
+    issues.push('MICROSOFT_GRAPH_USER_EMAIL format invalid (should be email)');
+  }
+
+  return {
+    isValid: issues.length === 0,
+    issues,
+    config
+  };
 } 

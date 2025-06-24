@@ -1,4 +1,4 @@
-import { sendEmailViaGraph, isGraphConfigured } from '@/lib/microsoft-graph';
+import { sendEmailViaGraph, isGraphConfigured, verifyGraphConfiguration } from '@/lib/microsoft-graph';
 
 // Validate critical email configuration in production
 if (process.env.NODE_ENV === 'production') {
@@ -87,11 +87,16 @@ export async function sendEmail(data: EmailDataBase) {
   console.log('📧 Email Service: Starting email send process');
   console.log('📧 Email Service: Microsoft Graph Only Mode');
 
-  // Check Microsoft Graph configuration
-  if (!isGraphConfigured()) {
-    console.error('❌ Microsoft Graph not configured properly');
-    console.error('❌ Required env vars: MICROSOFT_GRAPH_CLIENT_ID, MICROSOFT_GRAPH_CLIENT_SECRET, MICROSOFT_GRAPH_TENANT_ID, MICROSOFT_GRAPH_USER_EMAIL');
-    return { success: false, message: 'Microsoft Graph service not configured' };
+  // Detailed configuration verification
+  const configCheck = verifyGraphConfiguration();
+  console.log('🔍 Microsoft Graph Configuration Check:', configCheck);
+
+  if (!configCheck.isValid) {
+    console.error('❌ Microsoft Graph configuration issues:', configCheck.issues);
+    return { 
+      success: false, 
+      message: `Microsoft Graph configuration invalid: ${configCheck.issues.join(', ')}` 
+    };
   }
 
   try {
