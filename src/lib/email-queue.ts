@@ -107,8 +107,31 @@ export async function processEmailQueue(): Promise<{
     console.log('🔍 Queue processor: Checking queue for emails...');
     // Process up to 10 emails at a time
     for (let i = 0; i < 10; i++) {
-      const emailJson = await kv.rpop(EMAIL_QUEUE_KEY);
-      if (!emailJson) break; // Queue is empty
+      console.log(`🔍 Queue processor: Attempting to pop from queue (iteration ${i+1})`);
+      
+      // Add timeout to KV rpop operation
+      const rpopPromise = kv.rpop(EMAIL_QUEUE_KEY);
+      const rpopTimeout = new Promise<null>((_, reject) => {
+        setTimeout(() => {
+          console.error('⏰ Queue processor: kv.rpop timed out after 5 seconds');
+          reject(new Error('KV rpop timeout after 5 seconds'));
+        }, 5000);
+      });
+      
+      let emailJson;
+      try {
+        emailJson = await Promise.race([rpopPromise, rpopTimeout]);
+        console.log('✅ Queue processor: Successfully popped item from queue');
+      } catch (error) {
+        console.error('❌ Queue processor: rpop failed:', error);
+        errors.push(`KV rpop failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        break; // Exit the loop if rpop fails
+      }
+      
+      if (!emailJson) {
+        console.log('✅ Queue processor: Queue is empty. Halting process.');
+        break; // Queue is empty
+      }
       
       processed++;
       
