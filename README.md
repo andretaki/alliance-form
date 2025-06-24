@@ -49,10 +49,16 @@ AWS_REGION=us-east-1
 # Database
 DATABASE_URL="postgresql://user:password@localhost:5432/database"
 
-# Email Configuration (Mailgun)
+# Email Configuration (Mailgun) - Optional if using Microsoft Graph
 MAIL_API_KEY=your-mailgun-api-key
 MAILGUN_DOMAIN=your-domain.com
 EMAIL_FORM=form-submissions@your-domain.com
+
+# Email Configuration (Microsoft Graph) - Preferred
+MICROSOFT_GRAPH_CLIENT_ID=your-app-client-id
+MICROSOFT_GRAPH_CLIENT_SECRET=your-app-client-secret
+MICROSOFT_GRAPH_TENANT_ID=your-tenant-id
+MICROSOFT_GRAPH_USER_EMAIL=andre@alliancechemical.com
 
 # OpenAI API for AI Analysis
 OPENAI_API_KEY=your-openai-api-key
@@ -60,6 +66,70 @@ OPENAI_API_KEY=your-openai-api-key
 # Environment
 NODE_ENV=development
 ```
+
+## 📧 Email Service Priority
+
+The system now supports **dual email providers** with automatic failover:
+
+1. **Microsoft Graph** (Primary) - Uses your Microsoft 365/Outlook account
+2. **Mailgun** (Fallback) - Commercial email service
+
+### 🔄 Email Flow:
+1. ✅ Try Microsoft Graph first
+2. ⚠️ If Graph fails → fallback to Mailgun  
+3. ❌ If both fail → log error but don't break application
+
+## 🚀 Microsoft Graph Setup
+
+### 1. **Azure App Registration**
+1. Go to [Azure Portal](https://portal.azure.com)
+2. Navigate to **Azure Active Directory** → **App registrations**
+3. Click **"New registration"**
+4. Name: `Alliance Chemical Email Service`
+5. Account types: **Single tenant**
+6. Click **Register**
+
+### 2. **Configure Permissions**
+In your app registration:
+1. Go to **API permissions**
+2. Click **"Add a permission"**
+3. Select **Microsoft Graph**
+4. Choose **Application permissions**
+5. Add these permissions:
+   - `Mail.Send` - Send email as any user
+   - `User.Read.All` - Read user profiles (optional)
+6. Click **"Grant admin consent"** (Important!)
+
+### 3. **Create Client Secret**
+1. Go to **Certificates & secrets**
+2. Click **"New client secret"**
+3. Description: `Alliance Chemical Email`
+4. Expires: **24 months** (recommended)
+5. Click **Add**
+6. **Copy the secret value** (you won't see it again!)
+
+### 4. **Get Your IDs**
+- **Client ID**: Found on the app's Overview page
+- **Tenant ID**: Found on the app's Overview page  
+- **Client Secret**: The value you copied above
+
+### 5. **Environment Variables**
+```bash
+MICROSOFT_GRAPH_CLIENT_ID=abc123-def456-ghi789
+MICROSOFT_GRAPH_CLIENT_SECRET=your-secret-value
+MICROSOFT_GRAPH_TENANT_ID=your-tenant-id
+MICROSOFT_GRAPH_USER_EMAIL=andre@alliancechemical.com
+EMAIL_FORM=andre@alliancechemical.com
+```
+
+## 🎯 Benefits of Microsoft Graph
+
+✅ **No sending limits** (unlike Mailgun free tier)  
+✅ **Professional sender reputation** (your domain)  
+✅ **Integrated with Office 365**  
+✅ **Better deliverability**  
+✅ **Cost-effective** (no per-email charges)  
+✅ **Automatic failover** to Mailgun if needed
 
 ## 🤖 AI Credit Analysis
 

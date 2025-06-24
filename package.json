@@ -11,8 +11,11 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.817.0",
     "@aws-sdk/s3-request-presigner": "^3.817.0",
+    "@azure/identity": "^4.10.1",
+    "@azure/msal-node": "^3.6.1",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.0.1",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@neondatabase/serverless": "^1.0.0",
     "@types/react-signature-canvas": "^1.0.7",
     "drizzle-orm": "^0.43.1",

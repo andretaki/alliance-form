@@ -1,5 +1,6 @@
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
+import { sendEmailViaGraph, isGraphConfigured } from '@/lib/microsoft-graph';
 
 // Initialize Mailgun client with robust error handling
 const mailgun = new Mailgun(formData);
@@ -7,11 +8,9 @@ let mg: any | null = null;
 
 // Robust environment variable validation for Mailgun
 if (process.env.NODE_ENV === 'production' && (!process.env.MAIL_API_KEY || !process.env.MAILGUN_DOMAIN)) {
-  const message = 'FATAL ERROR: Mailgun API key or domain not provided. Email functionality will be critically impaired in production.';
-  console.error(message);
-  throw new Error(message); // Fail fast in production
+  console.warn('Mailgun API key or domain not provided. Will try Microsoft Graph first.');
 } else if (!process.env.MAIL_API_KEY || !process.env.MAILGUN_DOMAIN) {
-  console.warn('Mailgun API key or domain not provided. Email functionality will be disabled.');
+  console.warn('Mailgun API key or domain not provided. Will try Microsoft Graph first.');
 }
 
 // Initialize Mailgun client only if credentials are available
@@ -26,7 +25,7 @@ if (process.env.MAIL_API_KEY && process.env.MAILGUN_DOMAIN) {
     const message = `Failed to initialize Mailgun client: ${error}`;
     console.error(message);
     if (process.env.NODE_ENV === 'production') {
-      throw new Error(message);
+      console.warn('Mailgun failed to initialize, will use Microsoft Graph if available');
     }
   }
 }
@@ -117,12 +116,26 @@ interface ShippingRequestData {
 }
 
 export async function sendEmail(data: EmailDataBase) {
-  if (!mg || !process.env.MAILGUN_DOMAIN) {
-    console.warn('Mailgun not configured. Skipping email send for:', data.subject);
-      return { success: false, message: 'Email service not configured' };
+  // Try Microsoft Graph first if configured
+  if (isGraphConfigured()) {
+    console.log('🔄 Attempting to send email via Microsoft Graph...');
+    const graphResult = await sendEmailViaGraph(data);
+    if (graphResult.success) {
+      console.log('✅ Email sent successfully via Microsoft Graph');
+      return graphResult;
+    } else {
+      console.warn('⚠️ Microsoft Graph failed, trying Mailgun fallback:', graphResult.message);
     }
+  }
+
+  // Fallback to Mailgun
+  if (!mg || !process.env.MAILGUN_DOMAIN) {
+    console.error('❌ Neither Microsoft Graph nor Mailgun is configured properly');
+    return { success: false, message: 'No email service available - both Microsoft Graph and Mailgun failed' };
+  }
 
   try {
+    console.log('🔄 Attempting to send email via Mailgun fallback...');
     const messageData = {
       from: data.from || `Alliance Chemical Forms <noreply@${process.env.MAILGUN_DOMAIN}>`,
       to: data.to,
@@ -132,11 +145,11 @@ export async function sendEmail(data: EmailDataBase) {
     };
 
     const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, messageData);
-    console.log('Email sent successfully via Mailgun:', result);
+    console.log('✅ Email sent successfully via Mailgun (fallback)');
     return { success: true, result };
   } catch (error) {
-    console.error('Error sending email via Mailgun:', error);
-    return { success: false, message: 'Failed to send email', error };
+    console.error('❌ Error sending email via Mailgun:', error);
+    return { success: false, message: 'Both Microsoft Graph and Mailgun failed to send email', error };
   }
 }
 

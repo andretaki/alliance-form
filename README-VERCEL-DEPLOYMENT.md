@@ -14,11 +14,19 @@ NODE_ENV=production
 DATABASE_URL=postgresql://username:password@host/database?sslmode=require
 ```
 
-### 📧 Email Service (Mailgun)
+### 📧 Email Service (Microsoft Graph - Preferred)
+```bash
+MICROSOFT_GRAPH_CLIENT_ID=your-app-client-id
+MICROSOFT_GRAPH_CLIENT_SECRET=your-app-client-secret
+MICROSOFT_GRAPH_TENANT_ID=your-tenant-id
+MICROSOFT_GRAPH_USER_EMAIL=andre@alliancechemical.com
+EMAIL_FORM=andre@alliancechemical.com
+```
+
+### 📧 Email Service (Mailgun - Fallback)
 ```bash
 MAIL_API_KEY=your_mailgun_api_key
 MAILGUN_DOMAIN=your_domain.com
-EMAIL_FORM=your-email@company.com
 ```
 
 ### 🤖 AI Processing (OpenAI)
