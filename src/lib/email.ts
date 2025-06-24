@@ -1,5 +1,6 @@
 import { sendEmailViaGraph, isGraphConfigured, verifyGraphConfiguration } from '@/lib/microsoft-graph';
-import { queueEmail } from '@/lib/email-queue';
+// MODIFICATION: Import both queueing and processing functions
+import { queueEmail, processEmailQueue } from '@/lib/email-queue';
 
 // Validate critical email configuration in production
 if (process.env.NODE_ENV === 'production') {
@@ -132,15 +133,10 @@ export async function sendEmail(data: EmailDataBase, options?: {
       
       console.log(`✅ Email queued successfully: ${emailId}`);
       
-      // Trigger queue processing asynchronously (fire-and-forget)
-      const baseUrl = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}` 
-        : process.env.NODE_ENV === 'production' 
-          ? 'https://creditapp.alliancechemical.com'
-          : 'http://localhost:3000';
-      
-      fetch(`${baseUrl}/api/process-emails`, { method: 'POST' }).catch(error => {
-        console.warn('⚠️ Failed to trigger queue processing:', error);
+      // MODIFICATION: Replace the unreliable fetch call with a direct, non-blocking
+      // function call. This is much more reliable in a serverless environment.
+      processEmailQueue().catch(error => {
+        console.warn('⚠️ Background email queue processing failed:', error);
       });
       
       return { 
