@@ -17,7 +17,7 @@ export const MICROSOFT_GRAPH_CLIENT_ID = process.env.MICROSOFT_GRAPH_CLIENT_ID;
 export const MICROSOFT_GRAPH_CLIENT_SECRET = process.env.MICROSOFT_GRAPH_CLIENT_SECRET;
 export const MICROSOFT_GRAPH_TENANT_ID = process.env.MICROSOFT_GRAPH_TENANT_ID;
 export const MICROSOFT_GRAPH_USER_EMAIL = process.env.MICROSOFT_GRAPH_USER_EMAIL || process.env.EMAIL_FORM;
-export const EMAIL_FORM = process.env.EMAIL_FORM;
+export const EMAIL_FORM = process.env.EMAIL_FORM; // Where to send notifications (can be andre@alliancechemical.com)
 
 // Validate Microsoft Graph configuration in production
 if (process.env.NODE_ENV === 'production') {

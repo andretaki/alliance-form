@@ -108,7 +108,7 @@ export async function sendEmailViaGraph(data: GraphEmailData): Promise<{success:
 
   try {
     console.log('🔄 Microsoft Graph: Preparing email message...');
-    // Prepare email message
+    // Prepare email message using personal mailbox (andre@alliancechemical.com)
     const message = {
       subject: data.subject,
       body: {
@@ -124,7 +124,7 @@ export async function sendEmailViaGraph(data: GraphEmailData): Promise<{success:
       ],
       from: {
         emailAddress: {
-          address: data.from || MICROSOFT_GRAPH_USER_EMAIL
+          address: MICROSOFT_GRAPH_USER_EMAIL // Should be andre@alliancechemical.com
         }
       }
     };
