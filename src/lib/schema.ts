@@ -1,13 +1,12 @@
 import { pgTable, serial, text, timestamp, boolean, integer, index, pgSchema } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-// Define separate schemas for better organization
-export const applicationsSchema = pgSchema('applications');
-export const allianceChemicalSchema = pgSchema('alliance_chemical');
+// Define schema to match database structure
+export const applicationsSchema = pgSchema('applications'); // Main schema: verceldb.applications
 
-// === APPLICATIONS SCHEMA TABLES ===
+// === APPLICATIONS SCHEMA TABLES (main application tables) ===
 
-// Customer Applications table
+// Customer Applications table (in applications schema)
 export const customerApplications = applicationsSchema.table('customer_applications', {
   id: serial('id').primaryKey(),
   legalEntityName: text('legal_entity_name').notNull(),
@@ -28,7 +27,7 @@ export const customerApplications = applicationsSchema.table('customer_applicati
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// Trade References table
+// Trade References table (in applications schema)
 export const tradeReferences = applicationsSchema.table('trade_references', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id),
@@ -42,7 +41,7 @@ export const tradeReferences = applicationsSchema.table('trade_references', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// Digital Signatures table
+// Digital Signatures table (in applications schema)
 export const digitalSignatures = applicationsSchema.table('digital_signatures', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id),
@@ -55,7 +54,7 @@ export const digitalSignatures = applicationsSchema.table('digital_signatures', 
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// Vendor Forms table
+// Vendor Forms table (in applications schema)
 export const vendorForms = applicationsSchema.table('vendor_forms', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id),
@@ -68,11 +67,11 @@ export const vendorForms = applicationsSchema.table('vendor_forms', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// Credit Approval Decisions table
+// Credit Approval Decisions table (in applications schema)
 export const creditApprovals = applicationsSchema.table('credit_approvals', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id).notNull(),
-  decision: text('decision').notNull(), // 'APPROVED', 'DENIED', 'PENDING'
+  decision: text('decision').notNull(), // 'APPROVE', 'DENY', 'PENDING'
   approvedAmount: integer('approved_amount'), // Amount in cents
   approvedTerms: text('approved_terms'), // e.g. 'Net 30'
   approverEmail: text('approver_email'),
@@ -82,10 +81,10 @@ export const creditApprovals = applicationsSchema.table('credit_approvals', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// === ALLIANCE CHEMICAL SCHEMA TABLES ===
+// === ADDITIONAL APPLICATION TABLES ===
 
 // Terms table (company-wide terms and conditions)
-export const terms = allianceChemicalSchema.table('terms', {
+export const terms = applicationsSchema.table('terms', {
   id: serial('id').primaryKey(),
   title: text('title').notNull(),
   content: text('content').notNull(),
@@ -98,7 +97,7 @@ export const terms = allianceChemicalSchema.table('terms', {
 });
 
 // International Shipping Requests table (separate business function)
-export const internationalShippingRequests = allianceChemicalSchema.table('international_shipping_requests', {
+export const internationalShippingRequests = applicationsSchema.table('international_shipping_requests', {
   id: serial('id').primaryKey(),
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),

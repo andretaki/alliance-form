@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Attempting to insert into customer_applications table...');
     console.log('📋 Table schema info:', {
       tableName: 'customer_applications',
-      schemaName: 'alliance_chemical'
+      schemaName: 'applications'
     });
     
     try {
@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
       if (error.message.includes('relation') && error.message.includes('does not exist')) {
         console.error('🗄️ Database relation/table not found');
         console.error('This suggests either:');
-        console.error('1. Tables are not in the expected schema (alliance_chemical)');
+        console.error('1. Tables are not in the expected schema (applications)');
         console.error('2. Database connection is pointing to wrong database');
         console.error('3. Schema name is incorrect in table definitions');
         return NextResponse.json(

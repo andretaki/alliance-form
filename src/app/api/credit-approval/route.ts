@@ -8,7 +8,7 @@ import { eq, and } from 'drizzle-orm';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const applicationId = searchParams.get('id');
-  const decision = searchParams.get('decision'); // 'APPROVE' or 'DENY'
+  const decision = searchParams.get('decision'); // 'APPROVE' or 'DENY' (matches database constraint)
   const amount = searchParams.get('amount'); // Optional approval amount
   
   console.log(`🔍 Credit approval request: App ${applicationId}, Decision: ${decision}, Amount: ${amount}`);
@@ -62,8 +62,8 @@ export async function GET(request: NextRequest) {
       `, { headers: { 'Content-Type': 'text/html' } });
     }
 
-    const finalDecision = decision.toUpperCase() === 'APPROVE' ? 'APPROVED' : 'DENIED';
-    const approvedAmount = finalDecision === 'APPROVED' ? parseInt(amount || '1000000', 10) : null; // Default $10k in cents
+    const finalDecision = decision.toUpperCase(); // Use raw values: 'APPROVE' or 'DENY'
+    const approvedAmount = finalDecision === 'APPROVE' ? parseInt(amount || '1000000', 10) : null; // Default $10k in cents
 
     // Insert or update approval record
     if (existingApproval) {
@@ -92,14 +92,14 @@ export async function GET(request: NextRequest) {
     console.log(`✅ Decision recorded: ${finalDecision} for application ${appId}`);
 
     // Send customer notification emails
-    if (finalDecision === 'APPROVED') {
+    if (finalDecision === 'APPROVE') {
       await sendCustomerApprovalEmail(application, approvedAmount || 1000000);
     } else {
       await sendCustomerDenialEmail(application);
     }
 
     // Return success page
-    const successMessage = finalDecision === 'APPROVED' 
+    const successMessage = finalDecision === 'APPROVE' 
       ? `Application APPROVED for $${((approvedAmount || 1000000) / 100).toLocaleString()} credit limit with Net 30 terms.`
       : 'Application DENIED.';
 
@@ -132,9 +132,9 @@ export async function GET(request: NextRequest) {
         </head>
         <body>
           <div class="container">
-            <div class="icon">${finalDecision === 'APPROVED' ? '✅' : '❌'}</div>
-            <h2 class="${finalDecision === 'APPROVED' ? 'approved' : 'denied'}">
-              ${finalDecision === 'APPROVED' ? 'APPROVED!' : 'DENIED'}
+            <div class="icon">${finalDecision === 'APPROVE' ? '✅' : '❌'}</div>
+            <h2 class="${finalDecision === 'APPROVE' ? 'approved' : 'denied'}">
+              ${finalDecision === 'APPROVE' ? 'APPROVED!' : 'DENIED'}
             </h2>
             <p><strong>${application.legalEntityName}</strong></p>
             <p>${successMessage}</p>
