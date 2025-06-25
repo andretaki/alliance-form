@@ -74,7 +74,7 @@ export async function verifyBusiness(companyName: string, ein: string, state?: s
     // - IRS Business Master File
     // - OpenCorporates API
     
-    const suspiciousNames = ['test', 'demo', 'example', 'fake', 'temp'];
+    const suspiciousNames = ['test', 'demo', 'example', 'fake', 'temp', 'sample', 'mock'];
     const isTest = suspiciousNames.some(word => companyName.toLowerCase().includes(word));
     
     if (isTest) {
@@ -83,12 +83,24 @@ export async function verifyBusiness(companyName: string, ein: string, state?: s
         stateRegistered: null,
         entityType: null,
         registrationDate: null,
-        status: 'NOT FOUND',
-        verificationSource: 'Mock Verification'
+        status: 'REJECTED - TEST DATA DETECTED',
+        verificationSource: 'Form Validation'
       };
     }
 
-    // Mock successful verification for non-test companies
+    // Check EIN format
+    if (!/^\d{2}-?\d{7}$/.test(ein)) {
+      return {
+        isValid: false,
+        stateRegistered: null,
+        entityType: null,
+        registrationDate: null,
+        status: 'INVALID EIN FORMAT',
+        verificationSource: 'Form Validation'
+      };
+    }
+
+    // Mock successful verification for properly formatted companies
     return {
       isValid: true,
       stateRegistered: state || 'TX',

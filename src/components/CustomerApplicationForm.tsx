@@ -6,18 +6,50 @@ import * as z from 'zod';
 import Image from 'next/image';
 import DigitalSignature from './DigitalSignature';
 
-// Form validation schema
+// Form validation schema with enhanced validation
 const formSchema = z.object({
-  legalEntityName: z.string().min(1, { message: "Legal Entity Name is required" }),
+  // Company Information - REQUIRED
+  legalEntityName: z.string()
+    .min(2, { message: "Legal Entity Name must be at least 2 characters" })
+    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
+      message: "Please enter your actual company name (no test data)"
+    }),
   dba: z.string().optional(),
-  taxEIN: z.string().min(1, { message: "Tax EIN is required" }),
-  dunsNumber: z.string().optional(),
-  phoneNo: z.string().min(1, { message: "Phone Number is required" }),
   
-  // Enhanced Contact Information
-  primaryContactName: z.string().min(1, { message: "Primary contact name is required" }),
-  primaryContactTitle: z.string().optional(),
-  primaryContactEmail: z.string().email({ message: "Valid email is required" }),
+  // Tax ID with format validation - REQUIRED
+  taxEIN: z.string()
+    .min(1, { message: "Tax EIN is required" })
+    .regex(/^\d{2}-?\d{7}$/, { 
+      message: "Tax EIN must be in format XX-XXXXXXX or XXXXXXXXX" 
+    }),
+  
+  // DUNS strongly recommended but optional
+  dunsNumber: z.string()
+    .optional()
+    .refine(val => !val || /^\d{9}$/.test(val), {
+      message: "DUNS Number must be exactly 9 digits"
+    }),
+  
+  // Phone with format validation - REQUIRED
+  phoneNo: z.string()
+    .min(10, { message: "Phone Number is required" })
+    .regex(/^[\(\)\d\s\-\+\.]+$/, { 
+      message: "Please enter a valid phone number" 
+    }),
+  
+  // Primary Contact Information - ALL REQUIRED
+  primaryContactName: z.string()
+    .min(2, { message: "Primary contact name is required (minimum 2 characters)" }),
+  primaryContactTitle: z.string()
+    .min(1, { message: "Contact title/position is required" }),
+  primaryContactEmail: z.string()
+    .email({ message: "Valid business email is required" })
+    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
+      message: "Please enter a real business email address"
+    })
+    .refine(val => !/(gmail|yahoo|hotmail|outlook|aol)\.com$/i.test(val), {
+      message: "Please use your business email address (not personal email)"
+    }),
   
   // Additional Authorized Purchasers
   hasAdditionalPurchasers: z.boolean().optional(),
@@ -28,39 +60,81 @@ const formSchema = z.object({
     phone: z.string().optional()
   })).optional(),
   
-  // Enhanced Business Information
-  industry: z.string().min(1, { message: "Industry is required" }),
+  // Business Information - ALL REQUIRED
+  industry: z.string().min(1, { message: "Industry selection is required" }),
   companyType: z.string().min(1, { message: "Company type is required" }),
   numberOfEmployees: z.string().min(1, { message: "Number of employees is required" }),
   yearsSinceIncorporation: z.string().min(1, { message: "Years since incorporation is required" }),
   stateIncorporated: z.string().min(1, { message: "State of incorporation is required" }),
   companyValuation: z.string().optional(),
-  businessWebsite: z.string().optional(),
+  businessWebsite: z.string()
+    .optional()
+    .refine(val => !val || /^https?:\/\/.+\..+/.test(val), {
+      message: "Please enter a valid website URL"
+    }),
   
-  billToAddress: z.string().min(1, { message: "Billing Address is required" }),
-  billToCityStateZip: z.string().min(1, { message: "Billing City, State, Zip is required" }),
-  shipToAddress: z.string().min(1, { message: "Shipping Address is required" }),
-  shipToCityStateZip: z.string().min(1, { message: "Shipping City, State, Zip is required" }),
+  // Addresses - REQUIRED with format validation
+  billToAddress: z.string()
+    .min(5, { message: "Complete billing address is required" }),
+  billToCityStateZip: z.string()
+    .min(5, { message: "City, State, ZIP is required" })
+    .regex(/.*,.*\d{5}/, { 
+      message: "Format: City, State ZIP (e.g., Houston, TX 77002)" 
+    }),
+  shipToAddress: z.string()
+    .min(5, { message: "Complete shipping address is required" }),
+  shipToCityStateZip: z.string()
+    .min(5, { message: "City, State, ZIP is required" })
+    .regex(/.*,.*\d{5}/, { 
+      message: "Format: City, State ZIP (e.g., Houston, TX 77002)" 
+    }),
   
-  // Enhanced Credit Terms
-  requestedCreditAmount: z.number().min(1000, { message: "Minimum credit amount is $1,000" }),
-  isTaxExempt: z.boolean().optional(),
-  usesPaymentPortal: z.boolean().optional(),
+  // Credit Terms - REQUIRED
+  requestedCreditAmount: z.number()
+    .min(1000, { message: "Minimum credit amount is $1,000" })
+    .max(1000000, { message: "Maximum initial credit request is $1,000,000" }),
+  isTaxExempt: z.boolean({
+    required_error: "Please indicate tax exempt status"
+  }),
+  usesPaymentPortal: z.boolean({
+    required_error: "Please indicate if you use payment portals"
+  }),
   
-  buyerNameEmail: z.string().min(1, { message: "Buyer Name/Email is required" }),
-  accountsPayableNameEmail: z.string().min(1, { message: "Accounts Payable Name/Email is required" }),
+  // Contact Emails - REQUIRED with business domain validation
+  buyerNameEmail: z.string()
+    .email({ message: "Valid buyer email is required" })
+    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
+      message: "Please enter a real business email address"
+    })
+    .refine(val => !/(gmail|yahoo|hotmail|outlook|aol)\.com$/i.test(val), {
+      message: "Please use your business email address (not personal email)"
+    }),
+  accountsPayableNameEmail: z.string()
+    .email({ message: "Valid accounts payable email is required" })
+    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
+      message: "Please enter a real business email address"
+    })
+    .refine(val => !/(gmail|yahoo|hotmail|outlook|aol)\.com$/i.test(val), {
+      message: "Please use your business email address (not personal email)"
+    }),
   wantInvoicesEmailed: z.boolean().optional(),
-  invoiceEmail: z.string().email().optional(),
+  invoiceEmail: z.string()
+    .email({ message: "Valid invoice email is required" })
+    .optional()
+    .refine(val => !val || !/(test|demo|example|fake|temp)/i.test(val), {
+      message: "Please enter a real business email address"
+    }),
   
-  // Enhanced References with upload options
+  // References
   referenceUploadMethod: z.enum(['upload', 'manual']).default('manual'),
   
-  // Bank Reference
-  bankName: z.string().optional(),
+  // Bank Reference - At least bank name required
+  bankName: z.string()
+    .min(1, { message: "Bank name is required for credit evaluation" }),
   bankAccountNumber: z.string().optional(),
   bankContactName: z.string().optional(),
   bankContactPhone: z.string().optional(),
-  bankContactEmail: z.string().optional(),
+  bankContactEmail: z.string().email().optional(),
   
   // Vendor Forms
   vendorForms: z.array(z.object({
@@ -68,19 +142,24 @@ const formSchema = z.object({
     url: z.string()
   })).optional(),
   
-  // Trade References (enhanced)
-  trade1Name: z.string().optional(),
+  // Trade References - At least one trade reference required
+  trade1Name: z.string()
+    .min(1, { message: "At least one trade reference is required" })
+    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
+      message: "Please enter a real trade reference"
+    }),
   trade1FaxNo: z.string().optional(),
   trade1Address: z.string().optional(),
-  trade1Email: z.string().optional(),
+  trade1Email: z.string().email().optional(),
   trade1CityStateZip: z.string().optional(),
   trade1Attn: z.string().optional(),
-  trade1Phone: z.string().optional(),
+  trade1Phone: z.string()
+    .min(1, { message: "Phone number is required for trade reference" }),
   
   trade2Name: z.string().optional(),
   trade2FaxNo: z.string().optional(),
   trade2Address: z.string().optional(),
-  trade2Email: z.string().optional(),
+  trade2Email: z.string().email().optional(),
   trade2CityStateZip: z.string().optional(),
   trade2Attn: z.string().optional(),
   trade2Phone: z.string().optional(),
@@ -88,17 +167,19 @@ const formSchema = z.object({
   trade3Name: z.string().optional(),
   trade3FaxNo: z.string().optional(),
   trade3Address: z.string().optional(),
-  trade3Email: z.string().optional(),
+  trade3Email: z.string().email().optional(),
   trade3CityStateZip: z.string().optional(),
   trade3Attn: z.string().optional(),
   trade3Phone: z.string().optional(),
   
-  // Business Description
-  businessDescription: z.string().min(1, { message: "Please describe your business" }),
+  // Business Description - REQUIRED with minimum length
+  businessDescription: z.string()
+    .min(50, { message: "Please provide a detailed business description (minimum 50 characters)" })
+    .max(1000, { message: "Business description must be under 1000 characters" }),
   
-  // Terms and conditions agreement
+  // Terms and conditions agreement - REQUIRED
   termsAgreed: z.boolean().refine(val => val === true, {
-    message: "You must agree to the terms and conditions"
+    message: "You must agree to the terms and conditions to proceed"
   }),
 });
 
@@ -142,63 +223,7 @@ export default function CustomerApplicationForm() {
   const wantInvoicesEmailed = watch("wantInvoicesEmailed");
   const referenceUploadMethod = watch("referenceUploadMethod");
   
-  // Test button function - fill all fields with test data (development only)
-  const fillTestData = () => {
-    setValue("legalEntityName", "Test Chemical Company LLC");
-    setValue("dba", "Test Chemicals");
-    setValue("taxEIN", "12-3456789");
-    setValue("dunsNumber", "123456789");
-    setValue("phoneNo", "(555) 123-4567");
-    setValue("primaryContactName", "John Test Manager");
-    setValue("primaryContactTitle", "Operations Manager");
-    setValue("primaryContactEmail", "john.manager@testchemical.com");
-    setValue("industry", "Chemical Processing");
-    setValue("companyType", "LLC");
-    setValue("numberOfEmployees", "51-100");
-    setValue("yearsSinceIncorporation", "6-10 years");
-    setValue("stateIncorporated", "TX");
-    setValue("companyValuation", "$10M - $50M");
-    setValue("businessWebsite", "https://testchemical.com");
-    setValue("billToAddress", "123 Industrial Blvd");
-    setValue("billToCityStateZip", "Houston, TX 77002");
-    setValue("shipToAddress", "123 Industrial Blvd");
-    setValue("shipToCityStateZip", "Houston, TX 77002");
-    setValue("requestedCreditAmount", 25000);
-    setValue("isTaxExempt", false);
-    setValue("usesPaymentPortal", true);
-    setValue("buyerNameEmail", "purchasing@testchemical.com");
-    setValue("accountsPayableNameEmail", "ap@testchemical.com");
-    setValue("wantInvoicesEmailed", true);
-    setValue("invoiceEmail", "invoices@testchemical.com");
-    setValue("bankName", "Test National Bank");
-    setValue("bankAccountNumber", "****1234");
-    setValue("bankContactName", "Sarah Johnson");
-    setValue("bankContactPhone", "(555) 987-6543");
-    setValue("bankContactEmail", "sarah.johnson@testnationalbank.com");
-    setValue("trade1Name", "Chemical Supply Co");
-    setValue("trade1Address", "456 Supply St");
-    setValue("trade1CityStateZip", "Dallas, TX 75201");
-    setValue("trade1Attn", "Mike Rodriguez");
-    setValue("trade1Email", "mike@chemicalsupply.com");
-    setValue("trade1FaxNo", "(555) 111-2222");
-    setValue("trade1Phone", "(555) 111-2221");
-    setValue("trade2Name", "Industrial Materials Inc");
-    setValue("trade2Address", "789 Materials Ave");
-    setValue("trade2CityStateZip", "Austin, TX 78701");
-    setValue("trade2Attn", "Lisa Chen");
-    setValue("trade2Email", "lisa@industrialmaterials.com");
-    setValue("trade2FaxNo", "(555) 333-4444");
-    setValue("trade2Phone", "(555) 333-4443");
-    setValue("trade3Name", "Global Chemical Partners");
-    setValue("trade3Address", "321 Partners Rd");
-    setValue("trade3CityStateZip", "San Antonio, TX 78201");
-    setValue("trade3Attn", "David Wilson");
-    setValue("trade3Email", "david@globalchemical.com");
-    setValue("trade3FaxNo", "(555) 555-6666");
-    setValue("trade3Phone", "(555) 555-6665");
-    setValue("businessDescription", "We are a mid-size chemical processing company specializing in industrial cleaning solutions, water treatment chemicals, and specialty coatings. Our facility processes approximately 500,000 gallons of chemicals monthly and serves clients in manufacturing, oil & gas, and municipal water treatment sectors.");
-    setValue("termsAgreed", true);
-  };
+
   
   // Industry options
   const industries = [
@@ -425,6 +450,34 @@ export default function CustomerApplicationForm() {
           <p className="mt-4 text-lg text-gray-600">
             Please fill out the form below to apply for credit terms with Alliance Chemical.
           </p>
+          
+          {/* Requirements Notice */}
+          <div className="mt-8 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-semibold text-amber-800 mb-2">📋 Required Information</h3>
+                <div className="text-sm text-amber-700 space-y-1">
+                  <p><strong>Business Details:</strong> Legal company name, Tax EIN (XX-XXXXXXX format), industry, incorporation details</p>
+                  <p><strong>Contact Information:</strong> Business emails only (no personal Gmail/Yahoo accounts)</p>
+                  <p><strong>Business Description:</strong> Minimum 50 characters describing your business and chemical needs</p>
+                  <p><strong>Addresses:</strong> Complete billing and shipping addresses with proper City, State ZIP format</p>
+                  <p><strong>References:</strong> At least one trade reference with phone number + bank name required</p>
+                  <p><strong>Credit Amount:</strong> Between $1,000 - $1,000,000 initial request</p>
+                </div>
+                <div className="mt-3 p-3 bg-amber-100 rounded-lg border border-amber-300">
+                  <p className="text-sm text-amber-800">
+                    <strong>⚠️ Note:</strong> Test data (companies with "test", "demo", "example" in the name) will be automatically rejected. 
+                    Please provide real business information for credit evaluation.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {!showSignature ? (
@@ -487,25 +540,7 @@ export default function CustomerApplicationForm() {
               </div>
             </div>
 
-            {/* Test Button - Development Only */}
-            <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-4 border border-red-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-red-800 mb-1">🧪 Development Testing</h3>
-                  <p className="text-sm text-red-600">Auto-fill form with test data for quick testing</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={fillTestData}
-                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Fill Test Data
-                </button>
-              </div>
-            </div>
+
 
 
 
@@ -691,7 +726,7 @@ export default function CustomerApplicationForm() {
                     type="text"
                     {...register("taxEIN")}
                     className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="XX-XXXXXXX"
+                    placeholder="12-3456789 (Required format: XX-XXXXXXX)"
                   />
                   {errors.taxEIN && (
                     <p className="text-red-500 text-sm flex items-center mt-1">
@@ -701,6 +736,7 @@ export default function CustomerApplicationForm() {
                       {errors.taxEIN.message}
                     </p>
                   )}
+                  <p className="text-xs text-gray-500">Federal Tax ID must be in XX-XXXXXXX format</p>
                 </div>
 
                 <div className="space-y-2">
@@ -711,8 +747,17 @@ export default function CustomerApplicationForm() {
                     type="text"
                     {...register("dunsNumber")}
                     className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="9-digit number"
+                    placeholder="123456789 (9 digits - helps with approval)"
                   />
+                  {errors.dunsNumber && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.dunsNumber.message}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500">Optional but recommended for faster approval</p>
                 </div>
 
                 <div className="space-y-2">
@@ -749,13 +794,13 @@ export default function CustomerApplicationForm() {
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Business Description *
+                    Business Description * (50-1000 characters)
                   </label>
                   <textarea
                     {...register("businessDescription")}
                     rows={4}
                     className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="Tell us about your business and why you're interested in our products"
+                    placeholder="Describe your business, industry, and why you need chemical products from Alliance Chemical. Include details about your facility, production volumes, and specific chemical needs. (Minimum 50 characters required)"
                   />
                   {errors.businessDescription && (
                     <p className="text-red-500 text-sm flex items-center mt-1">
@@ -765,6 +810,7 @@ export default function CustomerApplicationForm() {
                       {errors.businessDescription.message}
                     </p>
                   )}
+                  <p className="text-xs text-gray-500">Provide detailed information about your business and chemical needs (50-1000 characters)</p>
                 </div>
               </div>
             </div>
@@ -803,25 +849,33 @@ export default function CustomerApplicationForm() {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Position/Title
+                    Position/Title *
                   </label>
                   <input
                     type="text"
                     {...register("primaryContactTitle")}
                     className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="e.g., Procurement Manager"
+                    placeholder="e.g., Procurement Manager, Operations Director"
                   />
+                  {errors.primaryContactTitle && (
+                    <p className="text-red-500 text-sm flex items-center mt-1">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.primaryContactTitle.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Email Address *
+                    Business Email Address *
                   </label>
                   <input
                     type="email"
                     {...register("primaryContactEmail")}
                     className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="contact@company.com"
+                    placeholder="contact@yourcompany.com (Business domain required)"
                   />
                   {errors.primaryContactEmail && (
                     <p className="text-red-500 text-sm flex items-center mt-1">
@@ -831,6 +885,7 @@ export default function CustomerApplicationForm() {
                       {errors.primaryContactEmail.message}
                     </p>
                   )}
+                  <p className="text-xs text-gray-500">Must be a business email (no Gmail, Yahoo, etc.)</p>
                 </div>
               </div>
 
@@ -1131,29 +1186,30 @@ export default function CustomerApplicationForm() {
                 <div className="space-y-8">
                   {/* Bank Reference Manual Entry */}
                   <div className="p-6 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Bank Reference</h3>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Bank Reference (Required)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <input
                         type="text"
                         {...register("bankName")}
-                        placeholder="Bank Name"
+                        placeholder="Bank Name *"
                         className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                       />
                       <input
                         type="text"
                         {...register("bankAccountNumber")}
-                        placeholder="Account Number"
+                        placeholder="Account Number (optional)"
                         className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                       />
                       <input
                         type="text"
                         {...register("bankContactName")}
-                        placeholder="Contact Name"
+                        placeholder="Bank Contact Name (optional)"
                         className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                       />
                       <input
                         type="tel"
                         {...register("bankContactPhone")}
+                        placeholder="Bank Contact Phone (optional)"
                         placeholder="Contact Phone"
                         className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                       />
