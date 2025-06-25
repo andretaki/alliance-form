@@ -59,11 +59,11 @@ const formSchema = z.object({
       message: "Please enter a valid website URL"
     }),
   
-  // Addresses - Optional for now
-  billToAddress: z.string().optional(),
-  billToCityStateZip: z.string().optional(),
-  shipToAddress: z.string().optional(),
-  shipToCityStateZip: z.string().optional(),
+  // Addresses - Required by backend
+  billToAddress: z.string().min(1, { message: "Billing address is required" }),
+  billToCityStateZip: z.string().min(1, { message: "Billing city, state, ZIP is required" }),
+  shipToAddress: z.string().min(1, { message: "Shipping address is required" }),
+  shipToCityStateZip: z.string().min(1, { message: "Shipping city, state, ZIP is required" }),
   
   // Credit Terms - REQUIRED
   requestedCreditAmount: z.number()
@@ -137,8 +137,10 @@ const formSchema = z.object({
     .min(1, { message: "Business description is required" })
     .max(1000, { message: "Business description must be under 1000 characters" }),
   
-  // Terms and conditions agreement - Optional for now
-  termsAgreed: z.boolean().optional(),
+  // Terms and conditions agreement - Required by backend
+  termsAgreed: z.boolean().refine(val => val === true, {
+    message: "You must agree to the terms and conditions"
+  }),
 });
 
 export default function CustomerApplicationForm() {
@@ -175,7 +177,11 @@ export default function CustomerApplicationForm() {
       additionalPurchasers: [],
       isTaxExempt: "",
       usesPaymentPortal: "",
-      referenceUploadMethod: 'manual' as const
+      referenceUploadMethod: 'manual' as const,
+      billToAddress: "",
+      billToCityStateZip: "",
+      shipToAddress: "",
+      shipToCityStateZip: ""
     }
   });
   
@@ -855,6 +861,69 @@ export default function CustomerApplicationForm() {
               </div>
             </div>
 
+            {/* Address Information */}
+            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Address Information</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Billing Address *
+                  </label>
+                  <input
+                    type="text"
+                    {...register("billToAddress")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="Street address"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Billing City, State, ZIP *
+                  </label>
+                  <input
+                    type="text"
+                    {...register("billToCityStateZip")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="City, State 12345"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Shipping Address *
+                  </label>
+                  <input
+                    type="text"
+                    {...register("shipToAddress")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="Street address"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Shipping City, State, ZIP *
+                  </label>
+                  <input
+                    type="text"
+                    {...register("shipToCityStateZip")}
+                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                    placeholder="City, State 12345"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Enhanced Credit Terms & Financial Information */}
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
               <div className="flex items-center mb-6">
@@ -1253,6 +1322,31 @@ export default function CustomerApplicationForm() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Terms and Conditions */}
+            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Terms and Conditions</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register("termsAgreed")}
+                    className="w-5 h-5 text-red-600 border-2 border-gray-300 rounded focus:ring-red-500 focus:ring-2 mt-1"
+                  />
+                  <span className="text-sm text-gray-700 leading-relaxed">
+                    I agree to the <strong>Terms and Conditions</strong> and acknowledge that I have read and understood the credit application requirements. I certify that all information provided is accurate and complete. *
+                  </span>
+                </label>
+              </div>
             </div>
 
             {/* Submit Button */}
