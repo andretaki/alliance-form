@@ -14,6 +14,11 @@ export async function GET(request: NextRequest) {
   console.log(`🔍 Credit approval request: App ${applicationId}, Decision: ${decision}, Amount: ${amount}`);
 
   try {
+    if (!db) {
+      console.error('❌ Database connection not available');
+      return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
+    }
+
     if (!applicationId || !decision) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
@@ -57,7 +62,7 @@ export async function GET(request: NextRequest) {
       `, { headers: { 'Content-Type': 'text/html' } });
     }
 
-    const finalDecision = decision.toUpperCase() as 'APPROVED' | 'DENIED';
+    const finalDecision = decision.toUpperCase() === 'APPROVE' ? 'APPROVED' : 'DENIED';
     const approvedAmount = finalDecision === 'APPROVED' ? parseInt(amount || '1000000', 10) : null; // Default $10k in cents
 
     // Insert or update approval record
@@ -282,10 +287,12 @@ Alliance Chemical Team
   }
 
   // Mark as notified
-  await db
-    .update(creditApprovals)
-    .set({ customerNotified: true })
-    .where(eq(creditApprovals.applicationId, application.id));
+  if (db) {
+    await db
+      .update(creditApprovals)
+      .set({ customerNotified: true })
+      .where(eq(creditApprovals.applicationId, application.id));
+  }
 }
 
 // Send denial email to customer
@@ -374,8 +381,10 @@ Alliance Chemical Customer Service
   }
 
   // Mark as notified
-  await db
-    .update(creditApprovals)
-    .set({ customerNotified: true })
-    .where(eq(creditApprovals.applicationId, application.id));
+  if (db) {
+    await db
+      .update(creditApprovals)
+      .set({ customerNotified: true })
+      .where(eq(creditApprovals.applicationId, application.id));
+  }
 } 
