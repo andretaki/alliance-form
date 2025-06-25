@@ -59,21 +59,11 @@ const formSchema = z.object({
       message: "Please enter a valid website URL"
     }),
   
-  // Addresses - REQUIRED with format validation
-  billToAddress: z.string()
-    .min(5, { message: "Complete billing address is required" }),
-  billToCityStateZip: z.string()
-    .min(5, { message: "City, State, ZIP is required" })
-    .regex(/.*,.*\d{5}/, { 
-      message: "Format: City, State ZIP (e.g., Houston, TX 77002)" 
-    }),
-  shipToAddress: z.string()
-    .min(5, { message: "Complete shipping address is required" }),
-  shipToCityStateZip: z.string()
-    .min(5, { message: "City, State, ZIP is required" })
-    .regex(/.*,.*\d{5}/, { 
-      message: "Format: City, State ZIP (e.g., Houston, TX 77002)" 
-    }),
+  // Addresses - Optional for now
+  billToAddress: z.string().optional(),
+  billToCityStateZip: z.string().optional(),
+  shipToAddress: z.string().optional(),
+  shipToCityStateZip: z.string().optional(),
   
   // Credit Terms - REQUIRED
   requestedCreditAmount: z.number()
@@ -108,9 +98,8 @@ const formSchema = z.object({
   // References
   referenceUploadMethod: z.enum(['upload', 'manual']).default('manual'),
   
-  // Bank Reference - At least bank name required
-  bankName: z.string()
-    .min(1, { message: "Bank name is required for credit evaluation" }),
+  // Bank Reference - Optional for now
+  bankName: z.string().optional(),
   bankAccountNumber: z.string().optional(),
   bankContactName: z.string().optional(),
   bankContactPhone: z.string().optional(),
@@ -122,19 +111,14 @@ const formSchema = z.object({
     url: z.string()
   })).optional(),
   
-  // Trade References - At least one trade reference required
-  trade1Name: z.string()
-    .min(1, { message: "At least one trade reference is required" })
-    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
-      message: "Please enter a real trade reference"
-    }),
+  // Trade References - Optional for now
+  trade1Name: z.string().optional(),
   trade1FaxNo: z.string().optional(),
   trade1Address: z.string().optional(),
   trade1Email: z.string().email().optional(),
   trade1CityStateZip: z.string().optional(),
   trade1Attn: z.string().optional(),
-  trade1Phone: z.string()
-    .min(1, { message: "Phone number is required for trade reference" }),
+  trade1Phone: z.string().optional(),
   
   trade2Name: z.string().optional(),
   trade2FaxNo: z.string().optional(),
@@ -157,10 +141,8 @@ const formSchema = z.object({
     .min(1, { message: "Business description is required" })
     .max(1000, { message: "Business description must be under 1000 characters" }),
   
-  // Terms and conditions agreement - REQUIRED
-  termsAgreed: z.boolean().refine(val => val === true, {
-    message: "You must agree to the terms and conditions to proceed"
-  }),
+  // Terms and conditions agreement - Optional for now
+  termsAgreed: z.boolean().optional(),
 });
 
 export default function CustomerApplicationForm() {
@@ -464,7 +446,7 @@ export default function CustomerApplicationForm() {
                 <div className="text-sm text-amber-700 space-y-1">
                   <p><strong>Business Details:</strong> Legal company name, Tax EIN (XX-XXXXXXX format), industry, incorporation details</p>
                   <p><strong>Contact Information:</strong> Business emails only (no personal Gmail/Yahoo accounts)</p>
-                  <p><strong>Business Description:</strong> Minimum 50 characters describing your business and chemical needs</p>
+                  <p><strong>Business Description:</strong> Describe your business and chemical needs</p>
                   <p><strong>Addresses:</strong> Complete billing and shipping addresses with proper City, State ZIP format</p>
                   <p><strong>References:</strong> At least one trade reference with phone number + bank name required</p>
                   <p><strong>Credit Amount:</strong> Between $1,000 - $1,000,000 initial request</p>
