@@ -103,7 +103,9 @@ const formSchema = z.object({
   bankAccountNumber: z.string().optional(),
   bankContactName: z.string().optional(),
   bankContactPhone: z.string().optional(),
-  bankContactEmail: z.string().optional(),
+  bankContactEmail: z.string().optional().refine(val => !val || z.string().email().safeParse(val).success, {
+    message: "Please enter a valid email address"
+  }),
   
   // Vendor Forms
   vendorForms: z.array(z.object({
