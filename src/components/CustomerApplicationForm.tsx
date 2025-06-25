@@ -69,12 +69,8 @@ const formSchema = z.object({
   requestedCreditAmount: z.number()
     .min(1000, { message: "Minimum credit amount is $1,000" })
     .max(1000000, { message: "Maximum initial credit request is $1,000,000" }),
-  isTaxExempt: z.boolean({
-    required_error: "Please indicate tax exempt status"
-  }),
-  usesPaymentPortal: z.boolean({
-    required_error: "Please indicate if you use payment portals"
-  }),
+  isTaxExempt: z.string().optional(),
+  usesPaymentPortal: z.string().optional(),
   
   // Contact Emails - REQUIRED (less strict validation)
   buyerNameEmail: z.string()
@@ -177,8 +173,8 @@ export default function CustomerApplicationForm() {
       vendorForms: [],
       hasAdditionalPurchasers: false,
       additionalPurchasers: [],
-      isTaxExempt: false,
-      usesPaymentPortal: false,
+      isTaxExempt: "",
+      usesPaymentPortal: "",
       referenceUploadMethod: 'manual' as const
     }
   });
@@ -902,9 +898,7 @@ export default function CustomerApplicationForm() {
                       <input
                         type="radio"
                         value="true"
-                        {...register("isTaxExempt", { 
-                          setValueAs: (value) => value === "true" 
-                        })}
+                        {...register("isTaxExempt")}
                         className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">Yes</span>
@@ -913,9 +907,7 @@ export default function CustomerApplicationForm() {
                       <input
                         type="radio"
                         value="false"
-                        {...register("isTaxExempt", { 
-                          setValueAs: (value) => false 
-                        })}
+                        {...register("isTaxExempt")}
                         className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">No</span>
@@ -932,9 +924,7 @@ export default function CustomerApplicationForm() {
                       <input
                         type="radio"
                         value="true"
-                        {...register("usesPaymentPortal", { 
-                          setValueAs: (value) => value === "true" 
-                        })}
+                        {...register("usesPaymentPortal")}
                         className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">Yes</span>
@@ -943,9 +933,7 @@ export default function CustomerApplicationForm() {
                       <input
                         type="radio"
                         value="false"
-                        {...register("usesPaymentPortal", { 
-                          setValueAs: (value) => false 
-                        })}
+                        {...register("usesPaymentPortal")}
                         className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">No</span>
