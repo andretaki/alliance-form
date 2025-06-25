@@ -14,7 +14,7 @@ import {
 interface CreditDecision {
   decision: 'APPROVE' | 'CONDITIONAL' | 'DECLINE' | 'REVIEW';
   creditScore: number;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
   creditLimit: number;
   paymentTerms: string;
   reasoning: string;
@@ -22,145 +22,245 @@ interface CreditDecision {
   additionalNotes: string;
   verificationSummary: string;
   scoreBreakdown: Record<string, number>;
+  fraudRiskScore: number;
+  auditFlags: string[];
 }
 
 interface FakeDataResult {
   isFake: boolean;
   reasons: string[];
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  fraudProbability: number;
 }
+
+interface DeepAuditResult {
+  suspicionLevel: number; // 0-100
+  redFlags: string[];
+  behavioralAnomalies: string[];
+  dataConsistency: number; // 0-100
+  industryRiskScore: number; // 0-100
+}
+
+// HARDCORE FRAUD DETECTION PATTERNS
+const HARDCORE_PATTERNS = {
+  // Expanded profanity and inappropriate terms
+  profanity: [
+    'fuck', 'shit', 'damn', 'ass', 'bitch', 'crap', 'hell', 'piss', 'bastard', 
+    'dick', 'cock', 'pussy', 'whore', 'fuk', 'sht', 'azz', 'b1tch', 'fck',
+    'porn', 'sex', 'nude', 'xxx', 'cannabis', 'weed', '420', 'drug', 'meth'
+  ],
+  
+  // Suspicious business name patterns
+  suspiciousBusinessPatterns: [
+    /^[A-Z]{3,4}\s*(inc|llc|corp)?$/i, // Just initials (ABC Inc)
+    /^\d+\s*(inc|llc|corp)?$/i, // Just numbers (123 LLC)
+    /^(new|best|top|great|super|mega|ultra)\s*(company|business|corp|inc|llc)$/i,
+    /cash\s*(only|now|fast|quick)/i,
+    /get\s*(rich|money|paid)\s*(quick|fast|now)/i,
+    /(pyramid|scheme|mlm|ponzi)/i,
+    /no\s*(credit|questions|verification)/i
+  ],
+  
+  // Known scammer patterns
+  scammerPatterns: [
+    'nigerian', 'prince', 'lottery', 'winner', 'inheritance',
+    'offshore', 'tax haven', 'anonymous', 'untraceable'
+  ],
+  
+  // Suspicious email patterns
+  suspiciousEmailDomains: [
+    'guerrillamail.com', 'mailinator.com', '10minutemail.com', 'tempmail.com',
+    'throwaway.email', 'getnada.com', 'temp-mail.org', 'maildrop.cc',
+    'yopmail.com', 'sharklasers.com', 'spam4.me', 'grr.la'
+  ],
+  
+  // High-risk industries
+  highRiskIndustries: [
+    'cryptocurrency', 'crypto', 'bitcoin', 'forex', 'trading',
+    'gambling', 'casino', 'betting', 'adult', 'escort',
+    'payday', 'loan', 'advance', 'mlm', 'network marketing'
+  ]
+};
 
 function detectFakeData(application: any): FakeDataResult {
   const reasons: string[] = [];
   let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+  let fraudScore = 0;
 
-  // Check company name for obvious fake indicators
   const companyName = (application.legalEntityName || '').toLowerCase().trim();
+  const email = (application.buyerNameEmail || '').toLowerCase();
+  const description = (application.businessDescription || '').toLowerCase();
   
-  // High confidence fake patterns
-  const profanityPatterns = [
-    'fuck', 'shit', 'damn', 'ass', 'bitch', 'crap', 'hell',
-    'piss', 'bastard', 'dick', 'cock', 'pussy', 'whore'
-  ];
-  
-  const testPatterns = [
-    'test', 'demo', 'example', 'fake', 'dummy', 'sample',
-    'temp', 'trial', 'xyz', 'abc', 'asdf', 'qwerty'
-  ];
-
-  const gibberishPatterns = [
-    'aaa', 'bbb', 'ccc', 'xxx', 'zzz', 'blah', 'foo', 'bar',
-    'lorem', 'ipsum', 'placeholder', 'default'
-  ];
-
-  // Check for profanity - INSTANT HIGH CONFIDENCE FAKE
-  for (const word of profanityPatterns) {
-    if (companyName.includes(word)) {
-      reasons.push(`Company name contains profanity: "${word}"`);
+  // HARDCORE PROFANITY CHECK
+  for (const word of HARDCORE_PATTERNS.profanity) {
+    if (companyName.includes(word) || description.includes(word)) {
+      reasons.push(`🚨 PROFANITY/INAPPROPRIATE: "${word}" detected`);
       confidence = 'HIGH';
+      fraudScore += 30;
     }
   }
 
-  // Check for obvious test patterns
-  for (const pattern of testPatterns) {
-    if (companyName.includes(pattern)) {
-      reasons.push(`Company name contains test pattern: "${pattern}"`);
-      if (confidence !== 'HIGH') confidence = 'MEDIUM';
+  // SUSPICIOUS BUSINESS NAME PATTERNS
+  for (const pattern of HARDCORE_PATTERNS.suspiciousBusinessPatterns) {
+    if (pattern.test(companyName)) {
+      reasons.push(`⚠️ SUSPICIOUS NAME PATTERN: Matches "${pattern}"`);
+      confidence = 'HIGH';
+      fraudScore += 25;
     }
   }
 
-  // Check for gibberish patterns
-  for (const pattern of gibberishPatterns) {
-    if (companyName.includes(pattern)) {
-      reasons.push(`Company name contains gibberish: "${pattern}"`);
-      if (confidence === 'LOW') confidence = 'MEDIUM';
+  // SCAMMER KEYWORD DETECTION
+  for (const scamWord of HARDCORE_PATTERNS.scammerPatterns) {
+    if (companyName.includes(scamWord) || description.includes(scamWord)) {
+      reasons.push(`🚨 SCAM INDICATOR: "${scamWord}" detected`);
+      confidence = 'HIGH';
+      fraudScore += 40;
     }
   }
 
-  // Check for repeated characters (like "fuck fuck")
-  if (/(.+)\s+\1/.test(companyName)) {
-    reasons.push('Company name has repeated identical words');
+  // DISPOSABLE EMAIL CHECK
+  const emailDomain = email.split('@')[1];
+  if (emailDomain && HARDCORE_PATTERNS.suspiciousEmailDomains.includes(emailDomain)) {
+    reasons.push(`🚨 DISPOSABLE EMAIL: ${emailDomain}`);
     confidence = 'HIGH';
+    fraudScore += 35;
   }
 
-  // Check for very short company names with no real words
-  if (companyName.length > 0 && companyName.length < 4 && !/\b(inc|llc|ltd|corp)\b/.test(companyName)) {
-    reasons.push('Company name suspiciously short with no business suffix');
+  // FREE EMAIL FOR BUSINESS
+  const freeEmailDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
+  if (emailDomain && freeEmailDomains.includes(emailDomain)) {
+    reasons.push(`⚠️ FREE EMAIL SERVICE: ${emailDomain} (unprofessional for business)`);
     if (confidence === 'LOW') confidence = 'MEDIUM';
+    fraudScore += 15;
   }
 
-  // Check phone number patterns
+  // GIBBERISH DETECTION - Enhanced
+  const nameWords = companyName.split(/\s+/);
+  const consonantClusters = nameWords.filter((word: string) => {
+    const consonantRatio = (word.match(/[^aeiou]/gi) || []).length / word.length;
+    return word.length > 3 && consonantRatio > 0.75;
+  });
+  
+  if (consonantClusters.length > nameWords.length * 0.5) {
+    reasons.push('🚨 GIBBERISH DETECTED: Excessive consonant clusters');
+    confidence = 'HIGH';
+    fraudScore += 20;
+  }
+
+  // REPEATED PATTERNS
+  if (/(.{2,})\1{2,}/.test(companyName)) {
+    reasons.push('🚨 REPEATED PATTERN: Suspicious character repetition');
+    confidence = 'HIGH';
+    fraudScore += 25;
+  }
+
+  // KEYBOARD MASHING DETECTION
+  const keyboardPatterns = ['qwerty', 'asdf', 'zxcv', 'qazwsx', 'qwertyuiop'];
+  for (const pattern of keyboardPatterns) {
+    if (companyName.includes(pattern)) {
+      reasons.push(`🚨 KEYBOARD MASHING: "${pattern}" detected`);
+      confidence = 'HIGH';
+      fraudScore += 30;
+    }
+  }
+
+  // PHONE NUMBER VALIDATION - EXTREME
   const phone = (application.phoneNo || '').replace(/\D/g, '');
   
-  // Fake phone patterns
-  const fakePhonePatterns = [
-    /^555\d{7}$/, // 555-xxx-xxxx
-    /^(\d)\1{9}$/, // All same digit (1111111111)
-    /^123456789\d$/, // Sequential numbers
-    /^987654321\d$/, // Reverse sequential
-    /^0+$/, // All zeros
-  ];
-
-  for (const pattern of fakePhonePatterns) {
-    if (pattern.test(phone)) {
-      reasons.push(`Phone number follows fake pattern: ${phone}`);
-      confidence = 'HIGH';
-    }
+  // Check for movie/TV phone numbers
+  if (phone.startsWith('555') && phone.length === 10) {
+    reasons.push(`🚨 FAKE PHONE: Hollywood 555 number`);
+    confidence = 'HIGH';
+    fraudScore += 40;
   }
 
-  // Check EIN format
+  // Check for sequential patterns
+  if (/0123456789|9876543210|1234567890/.test(phone)) {
+    reasons.push(`🚨 FAKE PHONE: Sequential pattern detected`);
+    confidence = 'HIGH';
+    fraudScore += 35;
+  }
+
+  // EIN DEEP VALIDATION
   const ein = (application.taxEIN || '').replace(/\D/g, '');
   
-  if (ein && ein.length === 9) {
-    // Check for fake EIN patterns
-    if (/^(\d)\1{8}$/.test(ein)) {
-      reasons.push(`EIN has all identical digits: ${ein}`);
-      confidence = 'HIGH';
-    }
+  if (ein.length === 9) {
+    // Check first two digits (should be valid IRS prefixes)
+    const prefix = parseInt(ein.substring(0, 2));
+    const validPrefixes = [
+      ...Array.from({length: 7}, (_, i) => i + 1), // 01-06
+      ...Array.from({length: 6}, (_, i) => i + 10), // 10-16
+      20, 24, 25, 26, 27, // Various states
+      ...Array.from({length: 18}, (_, i) => i + 30), // 30-47
+      ...Array.from({length: 38}, (_, i) => i + 50), // 50-87
+      ...Array.from({length: 8}, (_, i) => i + 90), // 90-95, 98, 99
+    ];
     
-    if (/^123456789$/.test(ein) || /^987654321$/.test(ein)) {
-      reasons.push(`EIN follows sequential pattern: ${ein}`);
+    if (!validPrefixes.includes(prefix)) {
+      reasons.push(`🚨 INVALID EIN PREFIX: ${prefix} not issued by IRS`);
       confidence = 'HIGH';
-    }
-
-    // Check for repeated patterns like 848848488
-    if (/(\d{3})\1/.test(ein)) {
-      reasons.push(`EIN has suspicious repeated pattern: ${ein}`);
-      if (confidence !== 'HIGH') confidence = 'MEDIUM';
+      fraudScore += 45;
     }
   }
 
-  // Check email patterns
-  const email = (application.buyerNameEmail || '').toLowerCase();
+  // ADDRESS QUALITY CHECK
+  const address = (application.billToAddress || '').toLowerCase();
+  const poBoxPattern = /^(po box|p\.o\. box|post office box)/i;
+  const suspiciousAddressWords = ['nowhere', 'fake street', 'test avenue', '123 main'];
   
-  if (email.includes('test') || email.includes('fake') || email.includes('demo')) {
-    reasons.push(`Email contains test indicators: ${email}`);
-    if (confidence === 'LOW') confidence = 'MEDIUM';
+  if (poBoxPattern.test(address)) {
+    reasons.push('⚠️ PO BOX ADDRESS: Higher risk for B2B credit');
+    fraudScore += 10;
   }
 
-  // Check for business description quality
-  const description = (application.businessDescription || '').toLowerCase().trim();
-  
-  if (description.length > 0 && description.length < 20) {
-    reasons.push('Business description suspiciously short');
-    if (confidence === 'LOW') confidence = 'MEDIUM';
+  for (const suspicious of suspiciousAddressWords) {
+    if (address.includes(suspicious)) {
+      reasons.push(`🚨 FAKE ADDRESS: Contains "${suspicious}"`);
+      confidence = 'HIGH';
+      fraudScore += 30;
+    }
   }
 
-  // Check for gibberish in description
-  const descriptionWords = description.split(/\s+/);
-  const gibberishCount = descriptionWords.filter((word: string) => 
-    word.length > 3 && !/[aeiou]/.test(word) // No vowels in longer words
-  ).length;
-  
-  if (gibberishCount > descriptionWords.length * 0.3) {
-    reasons.push('Business description contains excessive gibberish');
-    if (confidence === 'LOW') confidence = 'MEDIUM';
+  // BUSINESS DESCRIPTION ANALYSIS
+  if (description.length < 20) {
+    reasons.push('⚠️ MINIMAL DESCRIPTION: Insufficient business details');
+    fraudScore += 15;
+  }
+
+  if (description.length > 20) {
+    const uniqueWords = new Set(description.split(/\s+/));
+    const repetitionRatio = description.split(/\s+/).length / uniqueWords.size;
+    
+    if (repetitionRatio > 3) {
+      reasons.push('🚨 REPETITIVE DESCRIPTION: Same words repeated excessively');
+      confidence = 'HIGH';
+      fraudScore += 25;
+    }
+  }
+
+  // HIGH-RISK INDUSTRY CHECK
+  for (const riskyTerm of HARDCORE_PATTERNS.highRiskIndustries) {
+    if (companyName.includes(riskyTerm) || description.includes(riskyTerm)) {
+      reasons.push(`⚠️ HIGH-RISK INDUSTRY: "${riskyTerm}" detected`);
+      fraudScore += 20;
+    }
+  }
+
+  // Calculate final fraud probability
+  const fraudProbability = Math.min(fraudScore, 100);
+
+  // Adjust confidence based on total fraud score
+  if (fraudProbability >= 70) {
+    confidence = 'HIGH';
+  } else if (fraudProbability >= 40) {
+    confidence = 'MEDIUM';
   }
 
   return {
     isFake: reasons.length > 0,
     reasons,
-    confidence
+    confidence,
+    fraudProbability
   };
 }
 
@@ -215,7 +315,9 @@ export async function processApplicationWithAI(applicationId: number): Promise<C
         'Address Verification': 0,
         'Trade References': 0,
         'DUNS Verification': 0
-      }
+      },
+      fraudRiskScore: fakeDataCheck.fraudProbability,
+      auditFlags: fakeDataCheck.reasons
     };
   }
   
@@ -445,11 +547,13 @@ Return ONLY this JSON format (no markdown):
       riskLevel: finalRiskLevel,
       creditLimit: finalLimit,
       paymentTerms: finalTerms,
-      reasoning: `Automated credit analysis completed. Decision: ${finalDecision} based on credit score of ${creditScore.score}/850. Business verification: ${businessVerification.isValid ? 'Valid' : 'Failed'}. Domain analysis: ${domainVerification.isValid ? 'Clean' : 'Issues detected'}.`,
-      conditions: o3Analysis?.recommendedConditions || finalConditions,
+      reasoning: `Automated credit analysis completed. Decision: ${finalDecision} based on credit score of ${creditScore.score}/850.`,
+      conditions: finalConditions,
       additionalNotes: `Verification Summary: Business registration ${businessVerification.isValid ? 'valid' : 'invalid'}, Domain ${domainVerification.isValid ? 'clean' : 'flagged'}.\n\nScore Breakdown: ${Object.entries(creditScore.breakdown).map(([k,v]) => `${k}: ${v}`).join(', ')}`,
       verificationSummary: `Business: ${businessVerification.status}, Domain: ${domainVerification.isValid ? 'Valid' : 'Issues'}, Phone: ${phoneValidation.type}`,
-      scoreBreakdown: creditScore.breakdown
+      scoreBreakdown: creditScore.breakdown,
+      fraudRiskScore: fakeDataCheck.fraudProbability,
+      auditFlags: fakeDataCheck.reasons
     };
 
     console.log('✅ AI PROCESSOR: System analysis complete for application #' + applicationId);
@@ -524,7 +628,9 @@ Return ONLY this JSON format (no markdown):
         `Recommended Actions: ${(aiAnalysis.recommendedActions || []).join(', ')}`
       ].join('\n\n'),
       verificationSummary: aiAnalysis.verificationSummary || 'Verification checks completed',
-      scoreBreakdown: creditScore.breakdown
+      scoreBreakdown: creditScore.breakdown,
+      fraudRiskScore: fakeDataCheck.fraudProbability,
+      auditFlags: fakeDataCheck.reasons
     };
 
     console.log('✅ AI PROCESSOR: Analysis complete for application #' + applicationId);
@@ -544,7 +650,9 @@ Return ONLY this JSON format (no markdown):
       conditions: finalConditions,
       additionalNotes: `Verification Summary: Business registration ${businessVerification.isValid ? 'valid' : 'invalid'}, Domain ${domainVerification.isValid ? 'clean' : 'flagged'}.\n\nScore Breakdown: ${Object.entries(creditScore.breakdown).map(([k,v]) => `${k}: ${v}`).join(', ')}`,
       verificationSummary: `Business: ${businessVerification.status}, Domain: ${domainVerification.isValid ? 'Valid' : 'Issues'}, Phone: ${phoneValidation.type}`,
-      scoreBreakdown: creditScore.breakdown
+      scoreBreakdown: creditScore.breakdown,
+      fraudRiskScore: fakeDataCheck.fraudProbability,
+      auditFlags: fakeDataCheck.reasons
     };
 
     return result;
