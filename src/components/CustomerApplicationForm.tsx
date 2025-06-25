@@ -46,9 +46,6 @@ const formSchema = z.object({
     .email({ message: "Valid business email is required" })
     .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
       message: "Please enter a real business email address"
-    })
-    .refine(val => !/(gmail|yahoo|hotmail|outlook|aol)\.com$/i.test(val), {
-      message: "Please use your business email address (not personal email)"
     }),
   
   // Additional Authorized Purchasers
@@ -100,22 +97,16 @@ const formSchema = z.object({
     required_error: "Please indicate if you use payment portals"
   }),
   
-  // Contact Emails - REQUIRED with business domain validation
+  // Contact Emails - REQUIRED (less strict validation)
   buyerNameEmail: z.string()
     .email({ message: "Valid buyer email is required" })
     .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
       message: "Please enter a real business email address"
-    })
-    .refine(val => !/(gmail|yahoo|hotmail|outlook|aol)\.com$/i.test(val), {
-      message: "Please use your business email address (not personal email)"
     }),
   accountsPayableNameEmail: z.string()
     .email({ message: "Valid accounts payable email is required" })
     .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
       message: "Please enter a real business email address"
-    })
-    .refine(val => !/(gmail|yahoo|hotmail|outlook|aol)\.com$/i.test(val), {
-      message: "Please use your business email address (not personal email)"
     }),
   wantInvoicesEmailed: z.boolean().optional(),
   invoiceEmail: z.string()
@@ -501,6 +492,70 @@ export default function CustomerApplicationForm() {
 
         {!showSignature ? (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            {/* Error Summary */}
+            {Object.keys(errors).length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h3 className="text-lg font-semibold text-red-800 mb-2">⚠️ Please Fix These Issues</h3>
+                    <p className="text-sm text-red-700 mb-3">Please review and correct the following fields to continue:</p>
+                    <div className="space-y-1">
+                      {Object.entries(errors).map(([field, error]) => {
+                        const fieldNames: Record<string, string> = {
+                          'legalEntityName': 'Legal Entity Name',
+                          'taxEIN': 'Tax EIN',
+                          'phoneNo': 'Phone Number',
+                          'primaryContactName': 'Primary Contact Name',
+                          'primaryContactTitle': 'Contact Title/Position',
+                          'primaryContactEmail': 'Primary Contact Email',
+                          'industry': 'Industry',
+                          'companyType': 'Company Type',
+                          'numberOfEmployees': 'Number of Employees',
+                          'yearsSinceIncorporation': 'Years Since Incorporation',
+                          'stateIncorporated': 'State of Incorporation',
+                          'billToAddress': 'Billing Address',
+                          'billToCityStateZip': 'Billing City, State, ZIP',
+                          'shipToAddress': 'Shipping Address',
+                          'shipToCityStateZip': 'Shipping City, State, ZIP',
+                          'requestedCreditAmount': 'Requested Credit Amount',
+                          'isTaxExempt': 'Tax Exempt Status',
+                          'usesPaymentPortal': 'Payment Portal Usage',
+                          'buyerNameEmail': 'Buyer Email',
+                          'accountsPayableNameEmail': 'Accounts Payable Email',
+                          'bankName': 'Bank Name',
+                          'trade1Name': 'Trade Reference #1 Company Name',
+                          'trade1Phone': 'Trade Reference #1 Phone',
+                          'businessDescription': 'Business Description',
+                          'termsAgreed': 'Terms and Conditions Agreement'
+                        };
+                        
+                        const fieldName = fieldNames[field] || field;
+                        const errorMessage = (error as any)?.message || 'Required field';
+                        
+                        return (
+                          <div key={field} className="flex items-start text-sm text-red-700">
+                            <span className="font-medium mr-2">•</span>
+                            <span><strong>{fieldName}:</strong> {errorMessage}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-4 p-3 bg-red-100 rounded-lg">
+                      <p className="text-sm text-red-800">
+                        <strong>💡 Tip:</strong> Scroll down to find the highlighted fields in red and correct the information. 
+                        All required fields must be completed to submit your application.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* PDF Download Options - Forms Available */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Forms & Documents</h3>
@@ -1230,7 +1285,6 @@ export default function CustomerApplicationForm() {
                         type="tel"
                         {...register("bankContactPhone")}
                         placeholder="Bank Contact Phone (optional)"
-                        placeholder="Contact Phone"
                         className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                       />
                       <input
