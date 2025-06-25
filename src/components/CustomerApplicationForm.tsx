@@ -152,9 +152,9 @@ const formSchema = z.object({
   trade3Attn: z.string().optional(),
   trade3Phone: z.string().optional(),
   
-  // Business Description - REQUIRED with minimum length
+  // Business Description - REQUIRED but with relaxed validation
   businessDescription: z.string()
-    .min(50, { message: "Please provide a detailed business description (minimum 50 characters)" })
+    .min(1, { message: "Business description is required" })
     .max(1000, { message: "Business description must be under 1000 characters" }),
   
   // Terms and conditions agreement - REQUIRED
@@ -188,6 +188,7 @@ export default function CustomerApplicationForm() {
     setValue
   } = useForm({
     resolver: zodResolver(formSchema),
+    shouldFocusError: true, // Allow normal form focus behavior
     defaultValues: {
       wantInvoicesEmailed: false,
       termsAgreed: false,
@@ -855,13 +856,13 @@ export default function CustomerApplicationForm() {
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Business Description * (50-1000 characters)
+                    Business Description *
                   </label>
                   <textarea
                     {...register("businessDescription")}
                     rows={4}
                     className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="Describe your business, industry, and why you need chemical products from Alliance Chemical. Include details about your facility, production volumes, and specific chemical needs. (Minimum 50 characters required)"
+                    placeholder="Describe your business, industry, and why you need chemical products from Alliance Chemical. Include details about your facility, production volumes, and specific chemical needs."
                   />
                   {errors.businessDescription && (
                     <p className="text-red-500 text-sm flex items-center mt-1">
@@ -871,7 +872,7 @@ export default function CustomerApplicationForm() {
                       {errors.businessDescription.message}
                     </p>
                   )}
-                  <p className="text-xs text-gray-500">Provide detailed information about your business and chemical needs (50-1000 characters)</p>
+                  <p className="text-xs text-gray-500">Provide detailed information about your business and chemical needs (up to 1000 characters)</p>
                 </div>
               </div>
             </div>
