@@ -302,14 +302,13 @@ export async function sendEmail(data: EmailDataBase, options?: {
 }
 
 export async function sendApplicationSummary(applicationData: ApplicationData) {
-  if (!process.env.EMAIL_FORM) {
-    console.warn('EMAIL_FORM environment variable not set. Cannot send application summary.');
-    return;
-  }
+  // Send application summaries to sales team, not andre
+  // AI analysis/approval emails still go to EMAIL_FORM (andre@alliancechemical.com)
+  const salesEmail = process.env.SALES_EMAIL || 'sales@alliancechemical.com';
 
-  const subject = `[New App] ${applicationData.legalEntityName} (ID: ${applicationData.id || 'N/A'})`;
+  const subject = `[New Credit App] ${applicationData.legalEntityName} (ID: ${applicationData.id || 'N/A'})`;
   
-  // Simplified text body - NO AI ANALYSIS
+  // Simplified text body - NO AI ANALYSIS (this goes to sales team)
   const textBody = `
 A new customer credit application has been received and is being processed by our AI system.
 
@@ -318,7 +317,7 @@ Application ID: ${applicationData.id || 'N/A'}
 Submission Date: ${new Date().toISOString()}
 
 🤖 AI PROCESSING STATUS: In progress...
-You will receive a separate AI credit analysis report within 1-2 minutes.
+Andre will receive a separate AI credit analysis report for approval/denial within 1-2 minutes.
 
 The application details are included below for your review.
 `;
@@ -331,7 +330,7 @@ The application details are included below for your review.
   <p>A new application from <strong>${applicationData.legalEntityName}</strong> (ID: #${applicationData.id || 'N/A'}) is being processed by our AI system.</p>
   <div style="background: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; margin: 15px 0;">
     <p style="margin: 0; color: #1e40af;"><strong>🤖 AI PROCESSING STATUS:</strong> In progress...</p>
-    <p style="margin: 5px 0 0 0; color: #1e40af; font-size: 14px;">You will receive a separate AI credit analysis report within 1-2 minutes.</p>
+    <p style="margin: 5px 0 0 0; color: #1e40af; font-size: 14px;">Andre will receive a separate AI credit analysis report for approval/denial within 1-2 minutes.</p>
   </div>
   <p>The application details are included below for your review and processing.</p>
   <hr>
@@ -357,7 +356,7 @@ The application details are included below for your review.
 `;
 
   await sendEmail({
-    to: process.env.EMAIL_FORM,
+    to: salesEmail,
     subject: subject,
     text: textBody,
     html: htmlBody,
