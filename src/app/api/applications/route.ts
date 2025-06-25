@@ -43,11 +43,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate data using Zod schema
+    // Enhanced validation with security checks
     console.log('🔍 Validating request data...');
+    
+    // Basic security validation
+    const clientIP = request.headers.get('x-forwarded-for') || request.ip || 'unknown';
+    const userAgent = request.headers.get('user-agent') || '';
+    
+    // Log suspicious requests
+    if (!userAgent || userAgent.length < 10) {
+      console.warn(`🔒 Suspicious request with minimal user agent from ${clientIP}`);
+    }
+    
     const validationResult = customerApplicationSchema.safeParse(requestData);
     if (!validationResult.success) {
       console.error('❌ Validation failed:', validationResult.error.issues);
+      
+      // Log validation failures for security monitoring
+      console.warn(`🔒 Validation failure from ${clientIP}: ${JSON.stringify(validationResult.error.issues)}`);
+      
       return NextResponse.json(
         { 
           error: 'Validation failed', 
@@ -56,7 +70,13 @@ export async function POST(request: NextRequest) {
             message: issue.message
           }))
         },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY'
+          }
+        }
       );
     }
     console.log('✅ Request data validated successfully');

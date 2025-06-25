@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size
+    // Enhanced file validation
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: 'File too large', details: `File size must be less than ${MAX_FILE_SIZE / 1024 / 1024}MB` },
@@ -82,12 +82,68 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
+    // Validate file type by MIME type and extension
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: 'Invalid file type', details: `Allowed types: ${ALLOWED_FILE_TYPES.join(', ')}` },
         { status: 400 }
       );
+    }
+
+    // Additional security: Check file extension matches MIME type
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    const mimeTypeMapping: { [key: string]: string[] } = {
+      'pdf': ['application/pdf'],
+      'doc': ['application/msword'],
+      'docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      'jpg': ['image/jpeg'],
+      'jpeg': ['image/jpeg'],
+      'png': ['image/png'],
+      'gif': ['image/gif'],
+      'txt': ['text/plain'],
+      'xls': ['application/vnd.ms-excel'],
+      'xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+    };
+
+    if (fileExtension && mimeTypeMapping[fileExtension]) {
+      if (!mimeTypeMapping[fileExtension].includes(file.type)) {
+        return NextResponse.json(
+          { error: 'File extension does not match content type' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate filename for path traversal attacks
+    if (file.name.includes('..') || file.name.includes('/') || file.name.includes('\\')) {
+      return NextResponse.json(
+        { error: 'Invalid filename' },
+        { status: 400 }
+      );
+    }
+
+    // Basic content scanning for malicious files
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const suspiciousPatterns = [
+      /<script/i,
+      /javascript:/i,
+      /vbscript:/i,
+      /onclick/i,
+      /onerror/i,
+      /onload/i,
+      /eval\(/i,
+      /document\.write/i
+    ];
+
+    const fileContent = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 1024));
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(fileContent)) {
+        console.warn(`🔒 Suspicious file content detected in upload from ${request.ip}: ${file.name}`);
+        return NextResponse.json(
+          { error: 'File content not allowed' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate application ID using Zod schema
@@ -121,15 +177,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate a unique file name
-    const fileExtension = file.name.split('.').pop() || 'bin';
+    // Generate a unique file name (reuse fileExtension from validation)
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 10);
-    const uniqueFileName = `${timestamp}-${randomString}.${fileExtension}`;
+    const uniqueFileName = `${timestamp}-${randomString}.${fileExtension || 'bin'}`;
     const s3Key = `vendor-forms/${applicationId}/${uniqueFileName}`;
 
-    // Upload file to S3
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    // Upload file to S3 (reuse the buffer from content scanning)
     try {
       await s3Client.send(new PutObjectCommand({
         Bucket: AWS_S3_BUCKET_NAME,
@@ -181,6 +235,7 @@ export async function POST(request: NextRequest) {
       fileUrl: fileUrl,
       fileType: file.type || 'application/octet-stream',
       fileSize: file.size,
+      uploadedAt: new Date(),
     }).returning();
 
     if (!vendorFormRecord) {

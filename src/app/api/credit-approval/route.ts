@@ -3,6 +3,53 @@ import { db } from '@/lib/db';
 import { creditApprovals, customerApplications } from '@/lib/schema';
 import { sendEmail } from '@/lib/email';
 import { eq, and } from 'drizzle-orm';
+import crypto from 'crypto';
+
+// Security utilities for signed URLs
+function generateSignedUrl(applicationId: string, decision: string, amount?: string): string {
+  const timestamp = Date.now().toString();
+  const payload = `${applicationId}-${decision}-${amount || ''}-${timestamp}`;
+  const secret = process.env.SIGNATURE_SECRET || 'default-secret-change-in-production';
+  const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const params = new URLSearchParams({
+    id: applicationId,
+    decision,
+    token: timestamp,
+    sig: signature
+  });
+  
+  if (amount) params.set('amount', amount);
+  
+  return `${baseUrl}/api/credit-approval?${params.toString()}`;
+}
+
+function verifySignedUrl(request: NextRequest): boolean {
+  const { searchParams } = new URL(request.url);
+  const applicationId = searchParams.get('id');
+  const decision = searchParams.get('decision');
+  const amount = searchParams.get('amount');
+  const token = searchParams.get('token');
+  const signature = searchParams.get('sig');
+  
+  if (!applicationId || !decision || !token || !signature) {
+    return false;
+  }
+  
+  // Check if token is not too old (24 hours)
+  const tokenAge = Date.now() - parseInt(token);
+  if (tokenAge > 24 * 60 * 60 * 1000) {
+    return false;
+  }
+  
+  // Verify signature
+  const payload = `${applicationId}-${decision}-${amount || ''}-${token}`;
+  const secret = process.env.SIGNATURE_SECRET || 'default-secret-change-in-production';
+  const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+}
 
 // Approval/Denial endpoint - called directly from email links
 export async function GET(request: NextRequest) {
@@ -12,6 +59,27 @@ export async function GET(request: NextRequest) {
   const amount = searchParams.get('amount'); // Optional approval amount
   
   console.log(`🔍 Credit approval request: App ${applicationId}, Decision: ${decision}, Amount: ${amount}`);
+  
+  // Security: Verify signed URL
+  if (!verifySignedUrl(request)) {
+    console.warn(`❌ Invalid or expired signature for credit approval request from ${request.ip}`);
+    return new Response(`
+      <html>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+          <h2>🔒 Access Denied</h2>
+          <p>This link is invalid or has expired.</p>
+          <p>Please contact support if you need assistance.</p>
+        </body>
+      </html>
+    `, { 
+      status: 403,
+      headers: { 
+        'Content-Type': 'text/html',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY'
+      } 
+    });
+  }
 
   try {
     if (!db) {

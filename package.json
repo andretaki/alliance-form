@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "security-test": "node scripts/security-test.js",
+    "security-audit": "npm audit && npm run security-test",
+    "type-check": "tsc --noEmit",
+    "build-secure": "npm run type-check && npm run lint && npm run build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.817.0",
