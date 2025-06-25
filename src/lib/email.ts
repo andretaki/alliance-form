@@ -1,6 +1,9 @@
 import { sendEmailViaGraph, isGraphConfigured, verifyGraphConfiguration } from '@/lib/microsoft-graph';
 import { queueEmail, processEmailQueue, checkKVConnection } from '@/lib/email-queue';
 
+// Quick fix - Force Direct Send
+const FORCE_DIRECT_SEND = true; // Temporary flag
+
 // Validate critical email configuration in production
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.EMAIL_FORM) {
@@ -222,9 +225,9 @@ export async function sendEmail(data: EmailDataBase, options?: {
   console.log(`📧 Email type: ${options?.type || 'test'}, Immediate: ${options?.immediate || false}`);
   
   const emailType = options?.type || 'test';
-  const useQueue = !options?.immediate;
+  const useQueue = !options?.immediate && !FORCE_DIRECT_SEND;
   
-  // Try to use queue if not immediate
+  // Try to use queue if not immediate and not forced to direct send
   if (useQueue) {
     const kvAvailable = await shouldUseQueue();
     

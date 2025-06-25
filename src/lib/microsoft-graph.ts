@@ -31,17 +31,18 @@ async function getTokenDirectly(): Promise<string | null> {
       grant_type: 'client_credentials'
     });
 
-    // Increase timeout for production
+    // Increased timeout for Fluid Compute
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.warn('⏰ Direct token: Request timed out after 15 seconds');
+      console.warn('⏰ Direct token: Request timed out after 20 seconds');
       controller.abort();
-    }, 15000); // Increased to 15 seconds
+    }, 20000); // Increased for Fluid Compute
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Cache-Control': 'no-cache', // Prevent caching issues
       },
       body: params,
       signal: controller.signal
@@ -65,6 +66,9 @@ async function getTokenDirectly(): Promise<string | null> {
       return null;
     }
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('❌ Token request aborted due to timeout');
+    }
     console.error('❌ Direct token: Request failed:', error);
     return null;
   }

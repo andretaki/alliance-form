@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import { db } from '@/lib/db';
 import { customerApplications, tradeReferences } from '@/lib/schema';
 import { sendApplicationSummary } from '@/lib/email';
@@ -152,47 +153,8 @@ export async function POST(request: NextRequest) {
         console.log('ℹ️ No trade references to insert');
       }
 
-      // Send basic application summary email first
-      console.log('📧 Sending application summary email...');
-      sendApplicationSummary({
-        id: application.id,
-        ...data
-      }).catch(error => {
-        console.error('❌ Failed to send application summary email:', error);
-        // Don't fail the API request if email fails
-      });
-
-      // 🤖 TRIGGER AI PROCESSING AGENT (Vercel-compatible async processing)
-      console.log('🤖 Triggering AI processing agent...');
-      
-      // Import and process immediately (Vercel serverless compatible)
-      try {
-        const { processApplicationWithAI, sendAIAnalysisReport } = await import('@/lib/ai-processor');
-        
-        // Process in background without blocking response (fire-and-forget)
-        processApplicationWithAI(application.id)
-          .then(aiDecision => {
-            console.log('✅ AI processing completed:', aiDecision.decision);
-            // Send AI analysis report
-            return sendAIAnalysisReport({
-              id: application.id,
-              ...data
-            }, aiDecision);
-          })
-          .then(() => {
-            console.log('📧 AI analysis report sent successfully');
-          })
-          .catch(error => {
-            console.error('❌ AI processing failed:', error);
-            // Don't fail the API request if AI processing fails
-          });
-      } catch (importError) {
-        console.error('❌ Failed to load AI processor:', importError);
-        // Continue without AI processing if module fails to load
-      }
-
-      console.log('🎉 Application submitted successfully!');
-      return NextResponse.json({
+      // Send basic response immediately
+      const response = NextResponse.json({
         success: true,
         message: 'Application submitted successfully',
         application: {
@@ -201,6 +163,38 @@ export async function POST(request: NextRequest) {
           createdAt: application.createdAt,
         },
       }, { status: 201 });
+
+      // Use waitUntil for background processing
+      waitUntil(
+        Promise.all([
+          // Send application summary email
+          sendApplicationSummary({
+            id: application.id,
+            ...data
+          }).catch(error => {
+            console.error('❌ Failed to send application summary:', error);
+          }),
+          
+          // Process with AI
+          import('@/lib/ai-processor').then(({ processApplicationWithAI, sendAIAnalysisReport }) => 
+            processApplicationWithAI(application.id)
+              .then(aiDecision => {
+                console.log('✅ AI processing completed:', aiDecision.decision);
+                return sendAIAnalysisReport({
+                  id: application.id,
+                  ...data
+                }, aiDecision);
+              })
+              .then(() => {
+                console.log('📧 AI analysis report sent successfully');
+              })
+          ).catch(error => {
+            console.error('❌ AI processing failed:', error);
+          })
+        ])
+      );
+
+      return response;
 
     } catch (insertError) {
       console.error('❌ Failed to insert application:', insertError);

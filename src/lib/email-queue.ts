@@ -15,9 +15,22 @@ interface QueuedEmail {
   type: 'application_summary' | 'ai_analysis' | 'approval_notification' | 'test';
 }
 
-const EMAIL_QUEUE_KEY = 'email_queue_sorted'; // Changed from 'email_queue'
+const EMAIL_QUEUE_KEY = 'email_queue_fluid_v1'; // New key to avoid conflicts
 const MAX_ATTEMPTS = 3;
 const KV_TIMEOUT_MS = 5000; // Increased timeout
+
+// Initialize queue on first use
+async function ensureQueueExists() {
+  try {
+    const type = await kv.type(EMAIL_QUEUE_KEY);
+    if (type !== 'zset' && type !== 'none') {
+      console.warn(`⚠️ Queue key exists with wrong type: ${type}, deleting...`);
+      await kv.del(EMAIL_QUEUE_KEY);
+    }
+  } catch (error) {
+    console.error('❌ Queue initialization error:', error);
+  }
+}
 
 // Add connection check function
 export async function checkKVConnection(): Promise<boolean> {
@@ -72,6 +85,8 @@ export async function queueEmail(emailData: {
   applicationId?: number;
   type: 'application_summary' | 'ai_analysis' | 'approval_notification' | 'test';
 }): Promise<string> {
+  await ensureQueueExists();
+  
   const emailId = `email_${Date.now()}_${Math.random().toString(36).substring(2)}`;
   
   const queuedEmail: QueuedEmail = {
@@ -94,45 +109,16 @@ export async function queueEmail(emailData: {
   try {
     console.log('🔍 Queue: Attempting KV operation...');
     
-    // Use zadd instead of lpush for better reliability
-    // This uses a sorted set which can be more reliable in distributed environments
     const timestamp = Date.now();
-    const zaddPromise = kv.zadd(EMAIL_QUEUE_KEY, {
+    await kv.zadd(EMAIL_QUEUE_KEY, {
       score: timestamp,
       member: JSON.stringify(queuedEmail)
     });
     
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        console.error('⏰ Queue: kv.zadd timed out after 3 seconds');
-        reject(new Error('KV zadd timeout'));
-      }, 3000);
-    });
-    
-    await Promise.race([zaddPromise, timeoutPromise]);
     console.log(`✅ Email queued successfully: ${emailId}`);
-    
-    // Also set a backup key with TTL in case the queue gets stuck
-    try {
-      await kv.set(`email_backup_${emailId}`, JSON.stringify(queuedEmail), {
-        ex: 3600 // Expire after 1 hour
-      });
-    } catch (backupError) {
-      console.warn('⚠️ Failed to set backup key:', backupError);
-    }
-    
     return emailId;
   } catch (error) {
-    console.error('❌ Failed to queue email:', {
-      error,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      emailId
-    });
-    
-    // Mark KV as unavailable to prevent further attempts
-    kvAvailable = false;
-    lastKVCheck = Date.now();
-    
+    console.error('❌ Failed to queue email:', error);
     throw error;
   }
 }
