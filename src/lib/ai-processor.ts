@@ -24,6 +24,146 @@ interface CreditDecision {
   scoreBreakdown: Record<string, number>;
 }
 
+interface FakeDataResult {
+  isFake: boolean;
+  reasons: string[];
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+function detectFakeData(application: any): FakeDataResult {
+  const reasons: string[] = [];
+  let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+
+  // Check company name for obvious fake indicators
+  const companyName = (application.legalEntityName || '').toLowerCase().trim();
+  
+  // High confidence fake patterns
+  const profanityPatterns = [
+    'fuck', 'shit', 'damn', 'ass', 'bitch', 'crap', 'hell',
+    'piss', 'bastard', 'dick', 'cock', 'pussy', 'whore'
+  ];
+  
+  const testPatterns = [
+    'test', 'demo', 'example', 'fake', 'dummy', 'sample',
+    'temp', 'trial', 'xyz', 'abc', 'asdf', 'qwerty'
+  ];
+
+  const gibberishPatterns = [
+    'aaa', 'bbb', 'ccc', 'xxx', 'zzz', 'blah', 'foo', 'bar',
+    'lorem', 'ipsum', 'placeholder', 'default'
+  ];
+
+  // Check for profanity - INSTANT HIGH CONFIDENCE FAKE
+  for (const word of profanityPatterns) {
+    if (companyName.includes(word)) {
+      reasons.push(`Company name contains profanity: "${word}"`);
+      confidence = 'HIGH';
+    }
+  }
+
+  // Check for obvious test patterns
+  for (const pattern of testPatterns) {
+    if (companyName.includes(pattern)) {
+      reasons.push(`Company name contains test pattern: "${pattern}"`);
+      if (confidence !== 'HIGH') confidence = 'MEDIUM';
+    }
+  }
+
+  // Check for gibberish patterns
+  for (const pattern of gibberishPatterns) {
+    if (companyName.includes(pattern)) {
+      reasons.push(`Company name contains gibberish: "${pattern}"`);
+      if (confidence === 'LOW') confidence = 'MEDIUM';
+    }
+  }
+
+  // Check for repeated characters (like "fuck fuck")
+  if (/(.+)\s+\1/.test(companyName)) {
+    reasons.push('Company name has repeated identical words');
+    confidence = 'HIGH';
+  }
+
+  // Check for very short company names with no real words
+  if (companyName.length > 0 && companyName.length < 4 && !/\b(inc|llc|ltd|corp)\b/.test(companyName)) {
+    reasons.push('Company name suspiciously short with no business suffix');
+    if (confidence === 'LOW') confidence = 'MEDIUM';
+  }
+
+  // Check phone number patterns
+  const phone = (application.phoneNo || '').replace(/\D/g, '');
+  
+  // Fake phone patterns
+  const fakePhonePatterns = [
+    /^555\d{7}$/, // 555-xxx-xxxx
+    /^(\d)\1{9}$/, // All same digit (1111111111)
+    /^123456789\d$/, // Sequential numbers
+    /^987654321\d$/, // Reverse sequential
+    /^0+$/, // All zeros
+  ];
+
+  for (const pattern of fakePhonePatterns) {
+    if (pattern.test(phone)) {
+      reasons.push(`Phone number follows fake pattern: ${phone}`);
+      confidence = 'HIGH';
+    }
+  }
+
+  // Check EIN format
+  const ein = (application.taxEIN || '').replace(/\D/g, '');
+  
+  if (ein && ein.length === 9) {
+    // Check for fake EIN patterns
+    if (/^(\d)\1{8}$/.test(ein)) {
+      reasons.push(`EIN has all identical digits: ${ein}`);
+      confidence = 'HIGH';
+    }
+    
+    if (/^123456789$/.test(ein) || /^987654321$/.test(ein)) {
+      reasons.push(`EIN follows sequential pattern: ${ein}`);
+      confidence = 'HIGH';
+    }
+
+    // Check for repeated patterns like 848848488
+    if (/(\d{3})\1/.test(ein)) {
+      reasons.push(`EIN has suspicious repeated pattern: ${ein}`);
+      if (confidence !== 'HIGH') confidence = 'MEDIUM';
+    }
+  }
+
+  // Check email patterns
+  const email = (application.buyerNameEmail || '').toLowerCase();
+  
+  if (email.includes('test') || email.includes('fake') || email.includes('demo')) {
+    reasons.push(`Email contains test indicators: ${email}`);
+    if (confidence === 'LOW') confidence = 'MEDIUM';
+  }
+
+  // Check for business description quality
+  const description = (application.businessDescription || '').toLowerCase().trim();
+  
+  if (description.length > 0 && description.length < 20) {
+    reasons.push('Business description suspiciously short');
+    if (confidence === 'LOW') confidence = 'MEDIUM';
+  }
+
+  // Check for gibberish in description
+  const descriptionWords = description.split(/\s+/);
+  const gibberishCount = descriptionWords.filter((word: string) => 
+    word.length > 3 && !/[aeiou]/.test(word) // No vowels in longer words
+  ).length;
+  
+  if (gibberishCount > descriptionWords.length * 0.3) {
+    reasons.push('Business description contains excessive gibberish');
+    if (confidence === 'LOW') confidence = 'MEDIUM';
+  }
+
+  return {
+    isFake: reasons.length > 0,
+    reasons,
+    confidence
+  };
+}
+
 export async function processApplicationWithAI(applicationId: number): Promise<CreditDecision> {
   console.log(`🤖 AI PROCESSOR: Starting analysis for application #${applicationId}`);
 
@@ -46,6 +186,43 @@ export async function processApplicationWithAI(applicationId: number): Promise<C
 
   if (!application) {
     throw new Error('Application not found');
+  }
+
+  // 🚨 FAKE DATA DETECTION - Run this FIRST before wasting compute
+  console.log('🕵️ AI PROCESSOR: Running fake data detection...');
+  const fakeDataCheck = detectFakeData(application);
+  
+  if (fakeDataCheck.isFake && fakeDataCheck.confidence === 'HIGH') {
+    console.log(`🚨 FAKE DATA DETECTED with HIGH confidence for application #${applicationId}`);
+    console.log(`🚨 Reasons: ${fakeDataCheck.reasons.join(', ')}`);
+    
+    return {
+      decision: 'DECLINE',
+      creditScore: 0,
+      riskLevel: 'HIGH',
+      creditLimit: 0,
+      paymentTerms: 'Cash in Advance Only',
+      reasoning: `🚨 APPLICATION REJECTED - FAKE/TEST DATA DETECTED\n\nThis application has been automatically rejected due to obvious fake or test data submission. Our AI screening detected the following issues:\n\n${fakeDataCheck.reasons.map(r => `• ${r}`).join('\n')}\n\nTo submit a legitimate application, please use real business information including:\n• Actual company name (no profanity, test words, or gibberish)\n• Valid business phone number\n• Real Tax EIN\n• Legitimate business email address\n• Genuine business description\n\nFor assistance with a legitimate application, contact sales@alliancechemical.com`,
+      conditions: ['Resubmit with legitimate business information'],
+      additionalNotes: `Automatic rejection due to fake data detection.\n\nDetection confidence: ${fakeDataCheck.confidence}\nFlags raised: ${fakeDataCheck.reasons.length}\n\nThis application was rejected before any credit analysis to prevent waste of computational resources on obviously fraudulent submissions.`,
+      verificationSummary: 'Verification skipped - fake data detected during pre-screening',
+      scoreBreakdown: {
+        'Fake Data Detection': -1000,
+        'Application Quality': 0,
+        'Business Verification': 0,
+        'Domain Verification': 0,
+        'Phone Verification': 0,
+        'Address Verification': 0,
+        'Trade References': 0,
+        'DUNS Verification': 0
+      }
+    };
+  }
+  
+  // Log medium confidence warnings but continue processing
+  if (fakeDataCheck.isFake && fakeDataCheck.confidence === 'MEDIUM') {
+    console.log(`⚠️ SUSPICIOUS DATA detected for application #${applicationId}: ${fakeDataCheck.reasons.join(', ')}`);
+    console.log('⚠️ Continuing with analysis but flagging for review...');
   }
 
   // Fetch trade references
