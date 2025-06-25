@@ -902,7 +902,9 @@ export default function CustomerApplicationForm() {
                       <input
                         type="radio"
                         value="true"
-                        {...register("isTaxExempt", { setValueAs: (value) => true })}
+                        {...register("isTaxExempt", { 
+                          setValueAs: (value) => value === "true" 
+                        })}
                         className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">Yes</span>
@@ -911,7 +913,9 @@ export default function CustomerApplicationForm() {
                       <input
                         type="radio"
                         value="false"
-                        {...register("isTaxExempt", { setValueAs: (value) => false })}
+                        {...register("isTaxExempt", { 
+                          setValueAs: (value) => false 
+                        })}
                         className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">No</span>
@@ -928,7 +932,9 @@ export default function CustomerApplicationForm() {
                       <input
                         type="radio"
                         value="true"
-                        {...register("usesPaymentPortal", { setValueAs: (value) => true })}
+                        {...register("usesPaymentPortal", { 
+                          setValueAs: (value) => value === "true" 
+                        })}
                         className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">Yes</span>
@@ -937,7 +943,9 @@ export default function CustomerApplicationForm() {
                       <input
                         type="radio"
                         value="false"
-                        {...register("usesPaymentPortal", { setValueAs: (value) => false })}
+                        {...register("usesPaymentPortal", { 
+                          setValueAs: (value) => false 
+                        })}
                         className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">No</span>
