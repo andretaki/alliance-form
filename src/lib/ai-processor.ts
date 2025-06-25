@@ -112,23 +112,106 @@ export async function processApplicationWithAI(applicationId: number): Promise<C
 
   console.log('🎯 AI PROCESSOR: System decision:', finalDecision);
 
-  // Prepare data for AI narrative generation
-  const applicationData = {
-    legalEntityName: application.legalEntityName,
-    dba: application.dba,
-    taxEIN: application.taxEIN,
-    dunsNumber: application.dunsNumber,
-    phoneNo: application.phoneNo,
-    billToAddress: application.billToAddress,
-    buyerNameEmail: application.buyerNameEmail,
-    tradeReferences: tradeReferencesData.map(ref => ref.name).filter(Boolean),
-  };
+  // **STEP 1: Use o3 for analytical grading and decision validation**
+  let o3Analysis = null;
+  if (OPENAI_API_KEY) {
+    try {
+      console.log('🧠 AI PROCESSOR: Calling o3 for analytical grading...');
+      
+      const o3Prompt = `You are an expert credit analyst. Analyze this credit application and provide analytical insights.
 
-  // AI generates narrative ONLY - decisions are made by deterministic logic
-  const prompt = `
-You are a professional credit analyst writing an executive summary. The credit decision has ALREADY been made by our automated system based on verification data and credit scoring algorithms.
+*** APPLICATION DATA ***
+Company: ${application.legalEntityName}
+EIN: ${application.taxEIN}
+DUNS: ${application.dunsNumber || 'Not provided'}
+Industry: Based on business description and trade references
+Contact: ${application.buyerNameEmail}
+Trade References: ${tradeReferencesData.map(ref => ref.name).filter(Boolean).length}/3 provided
 
-*** FINAL SYSTEM DECISION (DO NOT CHANGE) ***
+*** VERIFICATION RESULTS ***
+- Business Registration: ${businessVerification.isValid} (Status: ${businessVerification.status})
+- Domain Analysis: ${domainVerification.isValid ? 'Valid' : 'Suspicious'} (Issues: ${domainVerification.suspiciousIndicators.join(', ') || 'None'})
+- Phone Validation: ${phoneValidation.isValid ? 'Valid' : 'Invalid'} (Type: ${phoneValidation.type})
+- Address Analysis: ${addressValidation.type} (Risk Factors: ${addressValidation.riskFactors.join(', ') || 'None'})
+
+*** CURRENT SYSTEM SCORE: ${creditScore.score}/850 ***
+Score Breakdown:
+${Object.entries(creditScore.breakdown).map(([key, value]) => `- ${key}: ${value > 0 ? '+' : ''}${value} points`).join('\n')}
+
+*** SYSTEM RECOMMENDATION: ${finalDecision} ***
+- Credit Limit: $${finalLimit.toLocaleString()}
+- Risk Level: ${finalRiskLevel}
+- Payment Terms: ${finalTerms}
+
+Analyze this data and provide:
+1. Validation of the credit score (should it be higher/lower?)
+2. Risk assessment refinement
+3. Key business strengths and red flags
+4. Specific conditions or monitoring requirements
+
+Return JSON only:
+{
+  "scoreValidation": "brief assessment of whether the ${creditScore.score} score is appropriate",
+  "adjustedRiskLevel": "${finalRiskLevel}" or suggest "LOW"/"MEDIUM"/"HIGH",
+  "keyStrengths": ["specific positive factors identified"],
+  "criticalConcerns": ["specific red flags or risks"],
+  "recommendedConditions": ["specific conditions for approval/monitoring"],
+  "analyticalSummary": "2-3 sentence expert assessment of creditworthiness"
+}`;
+
+      const o3Response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'o3-mini', // Using o3 for analytical work
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert credit analyst. Provide precise analytical insights based on verification data. Return only valid JSON.'
+            },
+            {
+              role: 'user',
+              content: o3Prompt
+            }
+          ],
+          temperature: 0.1, // Lower temperature for analytical work
+          max_tokens: 800,
+        }),
+      });
+
+      if (o3Response.ok) {
+        const o3Result = await o3Response.json();
+        const o3Content = o3Result.choices[0]?.message?.content;
+        
+        if (o3Content) {
+          try {
+            o3Analysis = JSON.parse(o3Content);
+            console.log('✅ o3 analytical grading complete');
+            
+            // Optionally adjust risk level based on o3 analysis
+            if (o3Analysis.adjustedRiskLevel && o3Analysis.adjustedRiskLevel !== finalRiskLevel) {
+              console.log(`📊 o3 suggests risk adjustment: ${finalRiskLevel} → ${o3Analysis.adjustedRiskLevel}`);
+              finalRiskLevel = o3Analysis.adjustedRiskLevel;
+            }
+          } catch (parseError) {
+            console.error('❌ Failed to parse o3 JSON response:', parseError);
+          }
+        }
+      } else {
+        console.error('❌ o3 API error:', o3Response.status);
+      }
+    } catch (error) {
+      console.error('❌ o3 API call failed:', error);
+    }
+  }
+
+  // **STEP 2: Use GPT-4o for narrative writing based on o3 analysis**
+  const prompt = `You are a professional credit analyst writing an executive summary. The credit decision has been made by our automated system and refined by expert analysis.
+
+*** FINAL DECISION (DO NOT CHANGE) ***
 - Decision: ${finalDecision}
 - Credit Score: ${creditScore.score}/850
 - Credit Limit: $${finalLimit.toLocaleString()}
@@ -136,42 +219,43 @@ You are a professional credit analyst writing an executive summary. The credit d
 - Risk Level: ${finalRiskLevel}
 
 *** VERIFICATION RESULTS ***
-- Business Registration Valid: ${businessVerification.isValid} (Status: ${businessVerification.status})
-- Domain Analysis: ${domainVerification.isValid ? 'Valid' : 'Invalid'} (Issues: ${domainVerification.suspiciousIndicators.join(', ') || 'None'})
+- Business Registration: ${businessVerification.isValid} (Status: ${businessVerification.status})
+- Domain Analysis: ${domainVerification.isValid ? 'Valid' : 'Issues detected'} (Issues: ${domainVerification.suspiciousIndicators.join(', ') || 'None'})
 - Phone Validation: ${phoneValidation.isValid ? 'Valid' : 'Invalid'} (Type: ${phoneValidation.type})
 - Address Type: ${addressValidation.type} (Risk Factors: ${addressValidation.riskFactors.join(', ') || 'None'})
+
+*** EXPERT ANALYTICAL INSIGHTS (from o3) ***
+${o3Analysis ? `
+Score Validation: ${o3Analysis.scoreValidation}
+Key Strengths: ${o3Analysis.keyStrengths?.join(', ')}
+Critical Concerns: ${o3Analysis.criticalConcerns?.join(', ')}
+Expert Summary: ${o3Analysis.analyticalSummary}
+Recommended Conditions: ${o3Analysis.recommendedConditions?.join(', ')}
+` : 'Expert analysis not available - using system analysis only'}
 
 *** CREDIT SCORE BREAKDOWN ***
 ${Object.entries(creditScore.breakdown).map(([key, value]) => `- ${key}: ${value > 0 ? '+' : ''}${value} points`).join('\n')}
 
-*** SCORING LOGIC REASONING ***
-${creditScore.reasoning.join('\n')}
-
 *** APPLICATION DATA ***
-Company: ${applicationData.legalEntityName}
-EIN: ${applicationData.taxEIN}
-DUNS: ${applicationData.dunsNumber || 'Not provided'}
-Contact: ${applicationData.buyerNameEmail}
-Trade References: ${applicationData.tradeReferences.length}/3 provided
+Company: ${application.legalEntityName}
+EIN: ${application.taxEIN}
+DUNS: ${application.dunsNumber || 'Not provided'}
+Contact: ${application.buyerNameEmail}
+Trade References: ${tradeReferencesData.map(ref => ref.name).filter(Boolean).length}/3 provided
 
-Write a professional, detailed credit analysis report explaining WHY this decision was made based on the verification results and scoring logic above. Be thorough and specific about the risk factors and strengths identified.
+Write a professional, comprehensive credit analysis report that incorporates the expert insights above. Focus on clear communication to business stakeholders.
 
-If this is a DECLINE, focus heavily on the red flags and verification failures.
-If this is APPROVE, emphasize the positive verification results and strong credit indicators.
-If CONDITIONAL or REVIEW, explain what additional steps are needed.
-
-Respond with ONLY this JSON format (no markdown formatting):
-
+Return ONLY this JSON format (no markdown):
 {
-  "executiveSummary": "3-4 sentence professional explanation of the credit decision based on verification data and scoring results",
-  "keyStrengths": ["List 2-3 positive factors that support creditworthiness"],
-  "criticalConcerns": ["List 2-3 red flags or risk factors identified"],
-  "verificationSummary": "Summary of all verification checks performed and their results",
-  "riskAssessment": "Detailed explanation of the risk level and why it was assigned",
-  "recommendedActions": ["List 2-3 next steps or conditions for approval/monitoring"]
+  "executiveSummary": "Professional 3-4 sentence explanation incorporating expert insights",
+  "keyStrengths": ["List 2-3 positive factors from analysis"],
+  "criticalConcerns": ["List 2-3 red flags from analysis"],
+  "verificationSummary": "Clear summary of all verification checks and results",
+  "riskAssessment": "Detailed explanation of risk level with expert insights",
+  "recommendedActions": ["List 2-3 specific next steps or monitoring requirements"]
 }`;
 
-  console.log('🤖 AI PROCESSOR: Calling OpenAI for narrative generation...');
+  console.log('📝 AI PROCESSOR: Calling GPT-4o for narrative writing...');
 
   // Only call OpenAI if API key is available
   if (!OPENAI_API_KEY) {
@@ -185,7 +269,7 @@ Respond with ONLY this JSON format (no markdown formatting):
       creditLimit: finalLimit,
       paymentTerms: finalTerms,
       reasoning: `Automated credit analysis completed. Decision: ${finalDecision} based on credit score of ${creditScore.score}/850. Business verification: ${businessVerification.isValid ? 'Valid' : 'Failed'}. Domain analysis: ${domainVerification.isValid ? 'Clean' : 'Issues detected'}.`,
-      conditions: finalConditions,
+      conditions: o3Analysis?.recommendedConditions || finalConditions,
       additionalNotes: `Verification Summary: Business registration ${businessVerification.isValid ? 'valid' : 'invalid'}, Domain ${domainVerification.isValid ? 'clean' : 'flagged'}.\n\nScore Breakdown: ${Object.entries(creditScore.breakdown).map(([k,v]) => `${k}: ${v}`).join(', ')}`,
       verificationSummary: `Business: ${businessVerification.status}, Domain: ${domainVerification.isValid ? 'Valid' : 'Issues'}, Phone: ${phoneValidation.type}`,
       scoreBreakdown: creditScore.breakdown
@@ -203,18 +287,18 @@ Respond with ONLY this JSON format (no markdown formatting):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o', // Using GPT-4o for narrative writing
         messages: [
           {
             role: 'system',
-            content: 'You are a professional credit analyst. Provide detailed, accurate analysis based strictly on the provided data. Return ONLY valid JSON with no markdown formatting.'
+            content: 'You are a professional credit analyst. Write clear, comprehensive reports for business stakeholders. Return ONLY valid JSON with no markdown formatting.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.3,
+        temperature: 0.3, // Moderate temperature for writing
         max_tokens: 1500,
       }),
     });

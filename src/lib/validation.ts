@@ -4,7 +4,11 @@ import { z } from 'zod';
 export const customerApplicationSchema = z.object({
   legalEntityName: z.string().min(1, { message: "Legal Entity Name is required" }),
   dba: z.string().optional(),
-  taxEIN: z.string().min(1, { message: "Tax EIN is required" }),
+  taxEIN: z.string()
+    .min(1, { message: "Tax EIN is required" })
+    .regex(/^(\d{9}|\d{2}-\d{7})$/, { 
+      message: "Tax EIN must be 9 digits or XX-XXXXXXX format" 
+    }),
   dunsNumber: z.string().optional(),
   phoneNo: z.string().min(1, { message: "Phone Number is required" }),
   billToAddress: z.string().min(1, { message: "Billing Address is required" }),

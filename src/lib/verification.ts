@@ -89,7 +89,7 @@ export async function verifyBusiness(companyName: string, ein: string, state?: s
     }
 
     // Check EIN format
-    if (!/^\d{2}-?\d{7}$/.test(ein)) {
+    if (!/^(\d{9}|\d{2}-\d{7})$/.test(ein)) {
       return {
         isValid: false,
         stateRegistered: null,

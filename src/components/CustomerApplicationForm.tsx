@@ -19,8 +19,8 @@ const formSchema = z.object({
   // Tax ID with format validation - REQUIRED
   taxEIN: z.string()
     .min(1, { message: "Tax EIN is required" })
-    .regex(/^\d{2}-?\d{7}$/, { 
-      message: "Tax EIN must be in format XX-XXXXXXX or XXXXXXXXX" 
+    .regex(/^(\d{9}|\d{2}-\d{7})$/, { 
+      message: "Tax EIN must be 9 digits (will be auto-formatted)" 
     }),
   
   // DUNS strongly recommended but optional
@@ -223,7 +223,26 @@ export default function CustomerApplicationForm() {
   const wantInvoicesEmailed = watch("wantInvoicesEmailed");
   const referenceUploadMethod = watch("referenceUploadMethod");
   
+  // Auto-format EIN with dash
+  const formatEIN = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+    
+    // Limit to 9 digits
+    const limitedDigits = digits.slice(0, 9);
+    
+    // Add dash after 2nd digit if we have more than 2 digits
+    if (limitedDigits.length > 2) {
+      return `${limitedDigits.slice(0, 2)}-${limitedDigits.slice(2)}`;
+    }
+    
+    return limitedDigits;
+  };
 
+  const handleEINChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatEIN(e.target.value);
+    setValue("taxEIN", formatted);
+  };
   
   // Industry options
   const industries = [
@@ -726,7 +745,8 @@ export default function CustomerApplicationForm() {
                     type="text"
                     {...register("taxEIN")}
                     className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="12-3456789 (Required format: XX-XXXXXXX)"
+                    placeholder="123456789 (Enter 9 digits - dash added automatically)"
+                    onChange={handleEINChange}
                   />
                   {errors.taxEIN && (
                     <p className="text-red-500 text-sm flex items-center mt-1">
@@ -736,7 +756,7 @@ export default function CustomerApplicationForm() {
                       {errors.taxEIN.message}
                     </p>
                   )}
-                  <p className="text-xs text-gray-500">Federal Tax ID must be in XX-XXXXXXX format</p>
+                  <p className="text-xs text-gray-500">Enter 9 digits - we'll automatically format as XX-XXXXXXX</p>
                 </div>
 
                 <div className="space-y-2">
