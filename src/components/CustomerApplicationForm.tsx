@@ -37,17 +37,6 @@ const formSchema = z.object({
       message: "Please enter a valid phone number" 
     }),
   
-  // Primary Contact Information - ALL REQUIRED
-  primaryContactName: z.string()
-    .min(2, { message: "Primary contact name is required (minimum 2 characters)" }),
-  primaryContactTitle: z.string()
-    .min(1, { message: "Contact title/position is required" }),
-  primaryContactEmail: z.string()
-    .email({ message: "Valid business email is required" })
-    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
-      message: "Please enter a real business email address"
-    }),
-  
   // Additional Authorized Purchasers
   hasAdditionalPurchasers: z.boolean().optional(),
   additionalPurchasers: z.array(z.object({
@@ -510,9 +499,6 @@ export default function CustomerApplicationForm() {
                           'legalEntityName': 'Legal Entity Name',
                           'taxEIN': 'Tax EIN',
                           'phoneNo': 'Phone Number',
-                          'primaryContactName': 'Primary Contact Name',
-                          'primaryContactTitle': 'Contact Title/Position',
-                          'primaryContactEmail': 'Primary Contact Email',
                           'industry': 'Industry',
                           'companyType': 'Company Type',
                           'numberOfEmployees': 'Number of Employees',
@@ -887,169 +873,6 @@ export default function CustomerApplicationForm() {
                   )}
                   <p className="text-xs text-gray-500">Provide detailed information about your business and chemical needs (50-1000 characters)</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Enhanced Contact Information */}
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 transform hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Contact Information</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Primary Contact Name *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("primaryContactName")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="First and Last Name"
-                  />
-                  {errors.primaryContactName && (
-                    <p className="text-red-500 text-sm flex items-center mt-1">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {errors.primaryContactName.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Position/Title *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("primaryContactTitle")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="e.g., Procurement Manager, Operations Director"
-                  />
-                  {errors.primaryContactTitle && (
-                    <p className="text-red-500 text-sm flex items-center mt-1">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {errors.primaryContactTitle.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Business Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    {...register("primaryContactEmail")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="contact@yourcompany.com (Business domain required)"
-                  />
-                  {errors.primaryContactEmail && (
-                    <p className="text-red-500 text-sm flex items-center mt-1">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {errors.primaryContactEmail.message}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-500">Must be a business email (no Gmail, Yahoo, etc.)</p>
-                </div>
-              </div>
-
-              {/* Additional Authorized Purchasers */}
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">Additional Authorized Purchasers</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowAdditionalPurchasers(!showAdditionalPurchasers)}
-                    className="text-green-600 hover:text-green-700 font-medium"
-                  >
-                    {showAdditionalPurchasers ? 'Hide' : 'Add More Authorized Purchasers?'}
-                  </button>
-                </div>
-                
-                {showAdditionalPurchasers && (
-                  <div className="space-y-4">
-                    {additionalPurchasers.map((purchaser, index) => (
-                      <div key={index} className="p-4 bg-gray-50 rounded-xl border">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="font-medium text-gray-700">Purchaser #{index + 1}</h4>
-                          {index > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => removeAdditionalPurchaser(index)}
-                              className="text-red-600 hover:text-red-700 text-sm"
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <input
-                            type="text"
-                            placeholder="Name"
-                            value={purchaser.name}
-                            onChange={(e) => {
-                              const updated = [...additionalPurchasers];
-                              updated[index].name = e.target.value;
-                              setAdditionalPurchasers(updated);
-                            }}
-                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Title"
-                            value={purchaser.title}
-                            onChange={(e) => {
-                              const updated = [...additionalPurchasers];
-                              updated[index].title = e.target.value;
-                              setAdditionalPurchasers(updated);
-                            }}
-                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
-                          <input
-                            type="email"
-                            placeholder="Email"
-                            value={purchaser.email}
-                            onChange={(e) => {
-                              const updated = [...additionalPurchasers];
-                              updated[index].email = e.target.value;
-                              setAdditionalPurchasers(updated);
-                            }}
-                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
-                          <input
-                            type="tel"
-                            placeholder="Phone"
-                            value={purchaser.phone}
-                            onChange={(e) => {
-                              const updated = [...additionalPurchasers];
-                              updated[index].phone = e.target.value;
-                              setAdditionalPurchasers(updated);
-                            }}
-                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={addAdditionalPurchaser}
-                      className="w-full p-3 border-2 border-dashed border-green-300 rounded-xl text-green-600 hover:border-green-400 hover:text-green-700 transition-colors"
-                    >
-                      + Add Another Purchaser
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
 
