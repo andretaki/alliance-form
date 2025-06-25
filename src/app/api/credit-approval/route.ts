@@ -162,11 +162,17 @@ export async function GET(request: NextRequest) {
 async function sendCustomerApprovalEmail(application: any, approvedAmountCents: number) {
   const approvedAmount = approvedAmountCents / 100;
   
+  // Collect all customer email contacts
   const customerEmails = [
     application.buyerNameEmail,
-    application.accountsPayableNameEmail,
+    application.accountsPayableNameEmail, 
     application.invoiceEmail
-  ].filter(Boolean);
+  ].filter(email => email && email.length > 0); // Filter out empty/null emails
+
+  if (customerEmails.length === 0) {
+    console.error('❌ No customer emails found for approval notification');
+    return;
+  }
 
   const subject = `🎉 WELCOME TO THE ALLIANCE! Credit Application Approved - ${application.legalEntityName}`;
   
@@ -266,12 +272,13 @@ We're excited to partner with ${application.legalEntityName}.
 Alliance Chemical Team
 `;
 
-  // Send to all customer contacts
+  // Send to all customer contacts + CC sales team
   for (const email of customerEmails) {
     if (email) {
       try {
         await sendEmail({
           to: email,
+          cc: 'sales@alliancechemical.com', // CC sales team on approvals
           subject: subject,
           html: htmlBody,
           text: textBody,
@@ -279,7 +286,7 @@ Alliance Chemical Team
           applicationId: application.id,
           type: 'approval_notification'
         });
-        console.log(`✅ Approval email sent to ${email}`);
+        console.log(`✅ Approval email sent to ${email} (CC: sales@alliancechemical.com)`);
       } catch (error) {
         console.error(`❌ Failed to send approval email to ${email}:`, error);
       }
@@ -297,10 +304,17 @@ Alliance Chemical Team
 
 // Send denial email to customer
 async function sendCustomerDenialEmail(application: any) {
+  // Collect all customer email contacts
   const customerEmails = [
     application.buyerNameEmail,
-    application.accountsPayableNameEmail
-  ].filter(Boolean);
+    application.accountsPayableNameEmail, 
+    application.invoiceEmail
+  ].filter(email => email && email.length > 0); // Filter out empty/null emails
+
+  if (customerEmails.length === 0) {
+    console.error('❌ No customer emails found for denial notification');
+    return;
+  }
 
   const subject = `Credit Application Update - ${application.legalEntityName}`;
   
@@ -360,12 +374,13 @@ Please contact our sales team at sales@alliancechemical.com for more information
 Alliance Chemical Customer Service
 `;
 
-  // Send to customer contacts
+  // Send to all customer contacts + CC sales team
   for (const email of customerEmails) {
     if (email) {
       try {
         await sendEmail({
           to: email,
+          cc: 'sales@alliancechemical.com', // CC sales team on denials
           subject: subject,
           html: htmlBody,
           text: textBody,
@@ -373,7 +388,7 @@ Alliance Chemical Customer Service
           applicationId: application.id,
           type: 'approval_notification'
         });
-        console.log(`✅ Denial email sent to ${email}`);
+        console.log(`✅ Denial email sent to ${email} (CC: sales@alliancechemical.com)`);
       } catch (error) {
         console.error(`❌ Failed to send denial email to ${email}:`, error);
       }

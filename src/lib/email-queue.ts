@@ -7,6 +7,7 @@ interface QueuedEmail {
   html: string;
   text: string;
   from?: string;
+  cc?: string;
   attempts: number;
   createdAt: string;
   lastAttempt?: string;
@@ -82,6 +83,7 @@ export async function queueEmail(emailData: {
   html: string;
   text: string;
   from?: string;
+  cc?: string;
   applicationId?: number;
   type: 'application_summary' | 'ai_analysis' | 'approval_notification' | 'test';
 }): Promise<string> {
@@ -185,7 +187,8 @@ export async function processEmailQueue(): Promise<{
           subject: email.subject,
           html: email.html,
           text: email.text,
-          from: email.from
+          from: email.from,
+          cc: email.cc
         });
 
         if (result.success) {

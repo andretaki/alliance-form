@@ -13,6 +13,7 @@ interface GraphEmailData {
   html: string;
   text: string;
   from?: string;
+  cc?: string;
 }
 
 let graphClient: Client | null = null;
@@ -224,6 +225,15 @@ async function sendEmailInternal(client: Client, data: GraphEmailData): Promise<
           }
         }
       ],
+      ...(data.cc && {
+        ccRecipients: [
+          {
+            emailAddress: {
+              address: data.cc
+            }
+          }
+        ]
+      }),
       from: {
         emailAddress: {
           address: MICROSOFT_GRAPH_USER_EMAIL // Should be andre@alliancechemical.com

@@ -19,6 +19,7 @@ interface EmailDataBase {
   html: string;
   text: string;
   from?: string;
+  cc?: string;
 }
 
 interface ApplicationData {
