@@ -6,8 +6,8 @@ import Navbar from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Alliance Chemical - Credit Application & International Shipping",
-  description: "Apply for credit or request international shipping with Alliance Chemical",
+  title: "Alliance Chemical - Credit Application",
+  description: "Apply for credit with Alliance Chemical",
 };
 
 export default function RootLayout({

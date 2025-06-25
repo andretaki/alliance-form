@@ -40,48 +40,7 @@ export const customerApplicationSchema = z.object({
   }),
 });
 
-// International Shipping Request Validation Schema
-export const shippingRequestSchema = z.object({
-  // Contact Information
-  firstName: z.string().min(1, { message: "First name is required" }),
-  lastName: z.string().min(1, { message: "Last name is required" }),
-  email: z.string().email({ message: "Valid email is required" }),
-  phone: z.string().min(1, { message: "Phone number is required" }),
-  company: z.string().optional(),
-  
-  // Shipping Address
-  shippingAddress: z.string().min(1, { message: "Shipping address is required" }),
-  addressLine2: z.string().optional(),
-  city: z.string().min(1, { message: "City is required" }),
-  stateProvince: z.string().min(1, { message: "State/Province is required" }),
-  postalCode: z.string().min(1, { message: "Postal code is required" }),
-  country: z.string().min(1, { message: "Country is required" }),
-  
-  // Order Details
-  productDescription: z.string().min(1, { message: "Product description is required" }),
-  quantity: z.string().min(1, { message: "Quantity is required" }),
-  estimatedValue: z.string().min(1, { message: "Estimated value is required" }),
-  orderRequest: z.string().min(1, { message: "Order request details are required" }),
-  specialInstructions: z.string().optional(),
-  
-  // Shipping Preferences
-  shippingMethod: z.string().min(1, { message: "Shipping method is required" }),
-  customShippingMethod: z.string().optional(),
-  urgency: z.string().min(1, { message: "Urgency level is required" }),
-  trackingRequired: z.boolean().optional(),
-  insuranceRequired: z.boolean().optional(),
-  
-  // Customs & Declaration
-  purposeOfShipment: z.string().optional(),
-  customPurpose: z.string().optional(),
-  hsCode: z.string().optional(),
-  countryOfOrigin: z.string().optional(),
-  
-  // Terms
-  termsAgreed: z.boolean().refine(val => val === true, {
-    message: "You must agree to the terms and conditions"
-  }),
-});
+
 
 // Digital Signature Validation Schema
 export const digitalSignatureSchema = z.object({
@@ -104,6 +63,6 @@ export const fileUploadSchema = z.object({
 
 // Type exports for better TypeScript support
 export type CustomerApplicationData = z.infer<typeof customerApplicationSchema>;
-export type ShippingRequestData = z.infer<typeof shippingRequestSchema>;
+
 export type DigitalSignatureData = z.infer<typeof digitalSignatureSchema>;
 export type FileUploadData = z.infer<typeof fileUploadSchema>; 

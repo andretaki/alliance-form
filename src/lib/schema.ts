@@ -81,59 +81,11 @@ export const creditApprovals = applicationsSchema.table('credit_approvals', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// === ADDITIONAL APPLICATION TABLES ===
-
-// Terms table (company-wide terms and conditions)
-export const terms = applicationsSchema.table('terms', {
-  id: serial('id').primaryKey(),
-  title: text('title').notNull(),
-  content: text('content').notNull(),
-  version: text('version').default('1.0').notNull(),
-  orderIndex: integer('order_index').default(0).notNull(),
-  isActive: boolean('is_active').default(true).notNull(),
-  effectiveDate: timestamp('effective_date').defaultNow().notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// International Shipping Requests table (separate business function)
-export const internationalShippingRequests = applicationsSchema.table('international_shipping_requests', {
-  id: serial('id').primaryKey(),
-  firstName: text('first_name').notNull(),
-  lastName: text('last_name').notNull(),
-  email: text('email').notNull(),
-  phone: text('phone').notNull(),
-  company: text('company'),
-  shippingAddress: text('shipping_address').notNull(),
-  addressLine2: text('address_line2'),
-  city: text('city').notNull(),
-  stateProvince: text('state_province').notNull(),
-  postalCode: text('postal_code').notNull(),
-  country: text('country').notNull(),
-  productDescription: text('product_description').notNull(),
-  quantity: text('quantity').notNull(),
-  estimatedValue: text('estimated_value').notNull(),
-  orderRequest: text('order_request').notNull(),
-  specialInstructions: text('special_instructions'),
-  shippingMethod: text('shipping_method').notNull(),
-  customShippingMethod: text('custom_shipping_method'),
-  urgency: text('urgency').notNull(),
-  trackingRequired: boolean('tracking_required').default(false),
-  insuranceRequired: boolean('insurance_required').default(false),
-  purposeOfShipment: text('purpose_of_shipment'),
-  customPurpose: text('custom_purpose'),
-  hsCode: text('hs_code'),
-  countryOfOrigin: text('country_of_origin'),
-  status: text('status').default('pending'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
 // Export types for TypeScript inference
 export type CustomerApplication = typeof customerApplications.$inferSelect;
 export type TradeReference = typeof tradeReferences.$inferSelect;
 export type DigitalSignature = typeof digitalSignatures.$inferSelect;
 export type VendorForm = typeof vendorForms.$inferSelect;
 export type CreditApproval = typeof creditApprovals.$inferSelect;
-export type Terms = typeof terms.$inferSelect;
-export type InternationalShippingRequest = typeof internationalShippingRequests.$inferSelect; 
+
+ 
