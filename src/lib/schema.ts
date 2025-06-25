@@ -1,11 +1,14 @@
 import { pgTable, serial, text, timestamp, boolean, integer, index, pgSchema } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-// Define the alliance_chemical schema
+// Define separate schemas for better organization
+export const applicationsSchema = pgSchema('applications');
 export const allianceChemicalSchema = pgSchema('alliance_chemical');
 
+// === APPLICATIONS SCHEMA TABLES ===
+
 // Customer Applications table
-export const customerApplications = allianceChemicalSchema.table('customer_applications', {
+export const customerApplications = applicationsSchema.table('customer_applications', {
   id: serial('id').primaryKey(),
   legalEntityName: text('legal_entity_name').notNull(),
   dba: text('dba'),
@@ -26,7 +29,7 @@ export const customerApplications = allianceChemicalSchema.table('customer_appli
 });
 
 // Trade References table
-export const tradeReferences = allianceChemicalSchema.table('trade_references', {
+export const tradeReferences = applicationsSchema.table('trade_references', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id),
   name: text('name'),
@@ -39,21 +42,8 @@ export const tradeReferences = allianceChemicalSchema.table('trade_references', 
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// Terms table
-export const terms = allianceChemicalSchema.table('terms', {
-  id: serial('id').primaryKey(),
-  title: text('title').notNull(),
-  content: text('content').notNull(),
-  version: text('version').default('1.0').notNull(),
-  orderIndex: integer('order_index').default(0).notNull(),
-  isActive: boolean('is_active').default(true).notNull(),
-  effectiveDate: timestamp('effective_date').defaultNow().notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
 // Digital Signatures table
-export const digitalSignatures = allianceChemicalSchema.table('digital_signatures', {
+export const digitalSignatures = applicationsSchema.table('digital_signatures', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id),
   signatureHash: text('signature_hash').notNull(),
@@ -66,7 +56,7 @@ export const digitalSignatures = allianceChemicalSchema.table('digital_signature
 });
 
 // Vendor Forms table
-export const vendorForms = allianceChemicalSchema.table('vendor_forms', {
+export const vendorForms = applicationsSchema.table('vendor_forms', {
   id: serial('id').primaryKey(),
   applicationId: integer('application_id').references(() => customerApplications.id),
   fileName: text('file_name').notNull(),
@@ -78,7 +68,36 @@ export const vendorForms = allianceChemicalSchema.table('vendor_forms', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// International Shipping Requests table
+// Credit Approval Decisions table
+export const creditApprovals = applicationsSchema.table('credit_approvals', {
+  id: serial('id').primaryKey(),
+  applicationId: integer('application_id').references(() => customerApplications.id).notNull(),
+  decision: text('decision').notNull(), // 'APPROVED', 'DENIED', 'PENDING'
+  approvedAmount: integer('approved_amount'), // Amount in cents
+  approvedTerms: text('approved_terms'), // e.g. 'Net 30'
+  approverEmail: text('approver_email'),
+  approverNotes: text('approver_notes'),
+  customerNotified: boolean('customer_notified').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// === ALLIANCE CHEMICAL SCHEMA TABLES ===
+
+// Terms table (company-wide terms and conditions)
+export const terms = allianceChemicalSchema.table('terms', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  version: text('version').default('1.0').notNull(),
+  orderIndex: integer('order_index').default(0).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  effectiveDate: timestamp('effective_date').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// International Shipping Requests table (separate business function)
 export const internationalShippingRequests = allianceChemicalSchema.table('international_shipping_requests', {
   id: serial('id').primaryKey(),
   firstName: text('first_name').notNull(),
@@ -111,25 +130,11 @@ export const internationalShippingRequests = allianceChemicalSchema.table('inter
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Credit Approval Decisions table
-export const creditApprovals = allianceChemicalSchema.table('credit_approvals', {
-  id: serial('id').primaryKey(),
-  applicationId: integer('application_id').references(() => customerApplications.id).notNull(),
-  decision: text('decision').notNull(), // 'APPROVED', 'DENIED', 'PENDING'
-  approvedAmount: integer('approved_amount'), // Amount in cents
-  approvedTerms: text('approved_terms'), // e.g. 'Net 30'
-  approverEmail: text('approver_email'),
-  approverNotes: text('approver_notes'),
-  customerNotified: boolean('customer_notified').default(false),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
 // Export types for TypeScript inference
 export type CustomerApplication = typeof customerApplications.$inferSelect;
 export type TradeReference = typeof tradeReferences.$inferSelect;
-export type Terms = typeof terms.$inferSelect;
 export type DigitalSignature = typeof digitalSignatures.$inferSelect;
 export type VendorForm = typeof vendorForms.$inferSelect;
-export type InternationalShippingRequest = typeof internationalShippingRequests.$inferSelect;
-export type CreditApproval = typeof creditApprovals.$inferSelect; 
+export type CreditApproval = typeof creditApprovals.$inferSelect;
+export type Terms = typeof terms.$inferSelect;
+export type InternationalShippingRequest = typeof internationalShippingRequests.$inferSelect; 
