@@ -15,7 +15,7 @@ interface QueuedEmail {
   type: 'application_summary' | 'ai_analysis' | 'approval_notification' | 'test';
 }
 
-const EMAIL_QUEUE_KEY = 'email_queue';
+const EMAIL_QUEUE_KEY = 'email_queue_sorted'; // Changed from 'email_queue'
 const MAX_ATTEMPTS = 3;
 const KV_TIMEOUT_MS = 5000; // Increased timeout
 
