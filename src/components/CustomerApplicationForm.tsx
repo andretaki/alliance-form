@@ -103,9 +103,7 @@ const formSchema = z.object({
   bankAccountNumber: z.string().optional(),
   bankContactName: z.string().optional(),
   bankContactPhone: z.string().optional(),
-  bankContactEmail: z.string().optional().refine(val => !val || z.string().email().safeParse(val).success, {
-    message: "Please enter a valid email address"
-  }),
+  bankContactEmail: z.string().optional(),
   
   // Vendor Forms
   vendorForms: z.array(z.object({
@@ -117,9 +115,7 @@ const formSchema = z.object({
   trade1Name: z.string().optional(),
   trade1FaxNo: z.string().optional(),
   trade1Address: z.string().optional(),
-  trade1Email: z.string().optional().refine(val => !val || z.string().email().safeParse(val).success, {
-    message: "Please enter a valid email address"
-  }),
+  trade1Email: z.string().optional(),
   trade1CityStateZip: z.string().optional(),
   trade1Attn: z.string().optional(),
   trade1Phone: z.string().optional(),
@@ -127,9 +123,7 @@ const formSchema = z.object({
   trade2Name: z.string().optional(),
   trade2FaxNo: z.string().optional(),
   trade2Address: z.string().optional(),
-  trade2Email: z.string().optional().refine(val => !val || z.string().email().safeParse(val).success, {
-    message: "Please enter a valid email address"
-  }),
+  trade2Email: z.string().optional(),
   trade2CityStateZip: z.string().optional(),
   trade2Attn: z.string().optional(),
   trade2Phone: z.string().optional(),
@@ -137,9 +131,7 @@ const formSchema = z.object({
   trade3Name: z.string().optional(),
   trade3FaxNo: z.string().optional(),
   trade3Address: z.string().optional(),
-  trade3Email: z.string().optional().refine(val => !val || z.string().email().safeParse(val).success, {
-    message: "Please enter a valid email address"
-  }),
+  trade3Email: z.string().optional(),
   trade3CityStateZip: z.string().optional(),
   trade3Attn: z.string().optional(),
   trade3Phone: z.string().optional(),
