@@ -6,13 +6,53 @@ import * as z from 'zod';
 import Image from 'next/image';
 import DigitalSignature from './DigitalSignature';
 
+// Enhanced fake data detection function
+const detectFakeData = (value: string): boolean => {
+  if (!value) return false;
+  
+  const normalizedValue = value.toLowerCase().trim();
+  
+  // Pattern 1: Common test/fake keywords
+  const fakeKeywords = /(test|demo|example|fake|temp|dummy|sample|placeholder|xxx|yyy|zzz)/i;
+  if (fakeKeywords.test(normalizedValue)) return true;
+  
+  // Pattern 2: Repetitive characters (3+ times)
+  const repetitivePattern = /(.)\1{2,}/;
+  if (repetitivePattern.test(normalizedValue)) return true;
+  
+  // Pattern 3: Repetitive sequences like "ABCABC" or "123123"
+  const sequencePattern = /(.{2,})\1{1,}/;
+  if (sequencePattern.test(normalizedValue)) return true;
+  
+  // Pattern 4: Sequential patterns like "abc", "123", "qwerty"
+  const sequences = ['abc', '123', '456', '789', 'qwe', 'asd', 'zxc', 'qwerty', 'asdf'];
+  if (sequences.some(seq => normalizedValue.includes(seq))) return true;
+  
+  // Pattern 5: All same character (after normalization)
+  const uniqueChars = new Set(normalizedValue.replace(/\s/g, ''));
+  if (uniqueChars.size <= 2 && normalizedValue.length > 3) return true;
+  
+  // Pattern 6: Obvious nonsense patterns
+  const nonsensePatterns = [
+    /^([a-z])\1+$/i,  // Single letter repeated - fixed with capturing group
+    /^(bop|bob|lol|wtf|omg|nah|yay|meh)+$/i,  // Common nonsense words
+    /^(na|la|da|ba|ha){2,}$/i,  // Syllable repetition
+    /^.{1,3}$/, // Too short for a real business name
+  ];
+  
+  return nonsensePatterns.some(pattern => pattern.test(normalizedValue));
+};
+
 // Form validation schema with enhanced validation
 const formSchema = z.object({
   // Company Information - REQUIRED
   legalEntityName: z.string()
-    .min(2, { message: "Legal Entity Name must be at least 2 characters" })
-    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
-      message: "Please enter your actual company name (no test data)"
+    .min(3, { message: "Legal Entity Name must be at least 3 characters" })
+    .refine(val => !detectFakeData(val), {
+      message: "Please enter your actual company name (no test data, repetitive patterns, or nonsense text)"
+    })
+    .refine(val => /^[a-zA-Z0-9\s\-&.,()]+$/.test(val), {
+      message: "Company name contains invalid characters"
     }),
   dba: z.string().optional(),
   
@@ -61,9 +101,13 @@ const formSchema = z.object({
   
   // Addresses - Required by backend
   billToAddress: z.string().min(1, { message: "Billing address is required" }),
-  billToCityStateZip: z.string().min(1, { message: "Billing city, state, ZIP is required" }),
+  billToCity: z.string().min(1, { message: "Billing city is required" }),
+  billToState: z.string().min(1, { message: "Billing state is required" }),
+  billToZip: z.string().min(1, { message: "Billing ZIP code is required" }),
   shipToAddress: z.string().min(1, { message: "Shipping address is required" }),
-  shipToCityStateZip: z.string().min(1, { message: "Shipping city, state, ZIP is required" }),
+  shipToCity: z.string().min(1, { message: "Shipping city is required" }),
+  shipToState: z.string().min(1, { message: "Shipping state is required" }),
+  shipToZip: z.string().min(1, { message: "Shipping ZIP code is required" }),
   
   // Credit Terms - REQUIRED
   requestedCreditAmount: z.number()
@@ -75,20 +119,20 @@ const formSchema = z.object({
   // Contact Emails - REQUIRED (less strict validation)
   buyerNameEmail: z.string()
     .email({ message: "Valid buyer email is required" })
-    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
-      message: "Please enter a real business email address"
+    .refine(val => !detectFakeData(val), {
+      message: "Please enter a real business email address (no test data or fake patterns)"
     }),
   accountsPayableNameEmail: z.string()
     .email({ message: "Valid accounts payable email is required" })
-    .refine(val => !/(test|demo|example|fake|temp)/i.test(val), {
-      message: "Please enter a real business email address"
+    .refine(val => !detectFakeData(val), {
+      message: "Please enter a real business email address (no test data or fake patterns)"
     }),
   wantInvoicesEmailed: z.boolean().optional(),
   invoiceEmail: z.string()
     .email({ message: "Valid invoice email is required" })
     .optional()
-    .refine(val => !val || !/(test|demo|example|fake|temp)/i.test(val), {
-      message: "Please enter a real business email address"
+    .refine(val => !val || !detectFakeData(val), {
+      message: "Please enter a real business email address (no test data or fake patterns)"
     }),
   
   // References
@@ -112,7 +156,9 @@ const formSchema = z.object({
   trade1FaxNo: z.string().optional(),
   trade1Address: z.string().optional(),
   trade1Email: z.string().optional(),
-  trade1CityStateZip: z.string().optional(),
+  trade1City: z.string().optional(),
+  trade1State: z.string().optional(),
+  trade1Zip: z.string().optional(),
   trade1Attn: z.string().optional(),
   trade1Phone: z.string().optional(),
   
@@ -120,7 +166,9 @@ const formSchema = z.object({
   trade2FaxNo: z.string().optional(),
   trade2Address: z.string().optional(),
   trade2Email: z.string().optional(),
-  trade2CityStateZip: z.string().optional(),
+  trade2City: z.string().optional(),
+  trade2State: z.string().optional(),
+  trade2Zip: z.string().optional(),
   trade2Attn: z.string().optional(),
   trade2Phone: z.string().optional(),
   
@@ -128,7 +176,9 @@ const formSchema = z.object({
   trade3FaxNo: z.string().optional(),
   trade3Address: z.string().optional(),
   trade3Email: z.string().optional(),
-  trade3CityStateZip: z.string().optional(),
+  trade3City: z.string().optional(),
+  trade3State: z.string().optional(),
+  trade3Zip: z.string().optional(),
   trade3Attn: z.string().optional(),
   trade3Phone: z.string().optional(),
   
@@ -179,9 +229,13 @@ export default function CustomerApplicationForm() {
       usesPaymentPortal: "",
       referenceUploadMethod: 'manual' as const,
       billToAddress: "",
-      billToCityStateZip: "",
+      billToCity: "",
+      billToState: "",
+      billToZip: "",
       shipToAddress: "",
-      shipToCityStateZip: ""
+      shipToCity: "",
+      shipToState: "",
+      shipToZip: ""
     }
   });
   
@@ -490,9 +544,13 @@ export default function CustomerApplicationForm() {
                           'yearsSinceIncorporation': 'Years Since Incorporation',
                           'stateIncorporated': 'State of Incorporation',
                           'billToAddress': 'Billing Address',
-                          'billToCityStateZip': 'Billing City, State, ZIP',
+                          'billToCity': 'Billing City',
+                          'billToState': 'Billing State',
+                          'billToZip': 'Billing ZIP Code',
                           'shipToAddress': 'Shipping Address',
-                          'shipToCityStateZip': 'Shipping City, State, ZIP',
+                          'shipToCity': 'Shipping City',
+                          'shipToState': 'Shipping State',
+                          'shipToZip': 'Shipping ZIP Code',
                           'requestedCreditAmount': 'Requested Credit Amount',
                           'isTaxExempt': 'Tax Exempt Status',
                           'usesPaymentPortal': 'Payment Portal Usage',
@@ -873,53 +931,142 @@ export default function CustomerApplicationForm() {
                 <h2 className="text-2xl font-bold text-gray-800">Address Information</h2>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Billing Address *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("billToAddress")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="Street address"
-                  />
+              <div className="space-y-8">
+                {/* Billing Address Section */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Billing Address</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-gray-700">
+                        Street Address *
+                      </label>
+                      <input
+                        type="text"
+                        {...register("billToAddress")}
+                        className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                        placeholder="Street address"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-700">
+                          City *
+                        </label>
+                        <input
+                          type="text"
+                          {...register("billToCity")}
+                          className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                          placeholder="City"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-700">
+                          State *
+                        </label>
+                        <select
+                          {...register("billToState")}
+                          className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                        >
+                          <option value="">Select State</option>
+                          {states.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-700">
+                          ZIP Code *
+                        </label>
+                        <input
+                          type="text"
+                          {...register("billToZip")}
+                          className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                          placeholder="ZIP Code"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Billing City, State, ZIP *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("billToCityStateZip")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="City, State 12345"
-                  />
-                </div>
+                {/* Shipping Address Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800">Shipping Address</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const billToAddress = watch("billToAddress");
+                        const billToCity = watch("billToCity");
+                        const billToState = watch("billToState");
+                        const billToZip = watch("billToZip");
+                        
+                        setValue("shipToAddress", billToAddress);
+                        setValue("shipToCity", billToCity);
+                        setValue("shipToState", billToState);
+                        setValue("shipToZip", billToZip);
+                      }}
+                      className="text-sm bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg transition-colors duration-200"
+                    >
+                      Copy from Billing
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-gray-700">
+                        Street Address *
+                      </label>
+                      <input
+                        type="text"
+                        {...register("shipToAddress")}
+                        className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                        placeholder="Street address"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-700">
+                          City *
+                        </label>
+                        <input
+                          type="text"
+                          {...register("shipToCity")}
+                          className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                          placeholder="City"
+                        />
+                      </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Shipping Address *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("shipToAddress")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="Street address"
-                  />
-                </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-700">
+                          State *
+                        </label>
+                        <select
+                          {...register("shipToState")}
+                          className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                        >
+                          <option value="">Select State</option>
+                          {states.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Shipping City, State, ZIP *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("shipToCityStateZip")}
-                    className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
-                    placeholder="City, State 12345"
-                  />
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-700">
+                          ZIP Code *
+                        </label>
+                        <input
+                          type="text"
+                          {...register("shipToZip")}
+                          className="w-full px-4 py-4 bg-white/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 hover:bg-white/70"
+                          placeholder="ZIP Code"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1211,12 +1358,27 @@ export default function CustomerApplicationForm() {
                           type="text"
                           {...register("trade1Address")}
                           placeholder="Address"
-                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 md:col-span-2"
                         />
                         <input
                           type="text"
-                          {...register("trade1CityStateZip")}
-                          placeholder="City, State, ZIP"
+                          {...register("trade1City")}
+                          placeholder="City"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <select
+                          {...register("trade1State")}
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="">State</option>
+                          {states.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          {...register("trade1Zip")}
+                          placeholder="ZIP"
                           className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                         />
                         <input
@@ -1254,12 +1416,27 @@ export default function CustomerApplicationForm() {
                           type="text"
                           {...register("trade2Address")}
                           placeholder="Address"
-                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 md:col-span-2"
                         />
                         <input
                           type="text"
-                          {...register("trade2CityStateZip")}
-                          placeholder="City, State, ZIP"
+                          {...register("trade2City")}
+                          placeholder="City"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <select
+                          {...register("trade2State")}
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="">State</option>
+                          {states.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          {...register("trade2Zip")}
+                          placeholder="ZIP"
                           className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                         />
                         <input
@@ -1297,12 +1474,27 @@ export default function CustomerApplicationForm() {
                           type="text"
                           {...register("trade3Address")}
                           placeholder="Address"
-                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 md:col-span-2"
                         />
                         <input
                           type="text"
-                          {...register("trade3CityStateZip")}
-                          placeholder="City, State, ZIP"
+                          {...register("trade3City")}
+                          placeholder="City"
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <select
+                          {...register("trade3State")}
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="">State</option>
+                          {states.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          {...register("trade3Zip")}
+                          placeholder="ZIP"
                           className="w-full px-4 py-3 bg-white border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                         />
                         <input

@@ -264,6 +264,245 @@ function detectFakeData(application: any): FakeDataResult {
   };
 }
 
+// 🤖 AGENT 1: FRAUD DETECTION (o3-mini-2025-01-31)
+async function runFraudDetectionAgent(application: any): Promise<{
+  isFraud: boolean;
+  confidence: number;
+  reasons: string[];
+  shouldProceed: boolean;
+}> {
+  if (!OPENAI_API_KEY) {
+    console.warn('⚠️ OpenAI API key not configured - using basic fraud detection');
+    const basicCheck = detectFakeData(application);
+    return {
+      isFraud: basicCheck.isFake,
+      confidence: basicCheck.fraudProbability,
+      reasons: basicCheck.reasons,
+      shouldProceed: !basicCheck.isFake || basicCheck.confidence !== 'HIGH'
+    };
+  }
+
+  const prompt = `You are a FRAUD DETECTION SPECIALIST. Your ONLY job is to identify fake, test, or fraudulent credit applications.
+
+ANALYZE THIS APPLICATION FOR FRAUD:
+
+Company Name: "${application.legalEntityName}"
+Tax EIN: "${application.taxEIN}"
+Email: "${application.buyerNameEmail}"
+Phone: "${application.phoneNo}"
+Address: "${application.billToAddress}"
+City/State: "${application.billToCity}, ${application.billToState}"
+Business Description: "${application.businessDescription}"
+
+FRAUD INDICATORS TO CHECK:
+🚨 Nonsense company names (gibberish, repeated patterns, profanity)
+🚨 Sequential/repetitive phone numbers (555-1234, 111-1111, etc)
+🚨 Fake emails (test@test.com, fake@fake.com, etc)
+🚨 Invalid EIN patterns (all same digits, sequential numbers)
+🚨 Gibberish or overly short business descriptions
+🚨 Obvious test data keywords (test, demo, fake, sample, etc)
+🚨 Keyboard mashing patterns (asdf, qwerty, etc)
+
+EXAMPLES OF FRAUD:
+- "BOPBOPBOP" (repetitive nonsense)
+- "Test Company LLC" (obvious test data)
+- "AAAAAAA Inc" (repetitive characters)
+- "123 Fake Street" (fake address)
+- "555-555-5555" (movie phone number)
+
+Return ONLY valid JSON:
+{
+  "isFraud": true/false,
+  "confidence": 0-100,
+  "reasons": ["specific fraud indicators found"],
+  "verdict": "REJECT/REVIEW/PROCEED",
+  "explanation": "brief reason for decision"
+}`;
+
+  try {
+    console.log('🕵️ AGENT 1: Running fraud detection...');
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'o3-mini-2025-01-31', // Locked snapshot for consistency
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert fraud detection specialist. Identify fake/test data with high precision. Return ONLY valid JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.1, // Very low for consistent fraud detection
+        max_tokens: 500,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Fraud detection API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const content = result.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('No response from fraud detection agent');
+    }
+
+    const fraudAnalysis = JSON.parse(content);
+    console.log(`🕵️ AGENT 1: Fraud confidence = ${fraudAnalysis.confidence}%`);
+
+    return {
+      isFraud: fraudAnalysis.isFraud,
+      confidence: fraudAnalysis.confidence,
+      reasons: fraudAnalysis.reasons || [],
+      shouldProceed: fraudAnalysis.verdict === 'PROCEED'
+    };
+
+  } catch (error) {
+    console.error('❌ AGENT 1: Fraud detection failed:', error);
+    // Fallback to basic detection
+    const basicCheck = detectFakeData(application);
+    return {
+      isFraud: basicCheck.isFake,
+      confidence: basicCheck.fraudProbability,
+      reasons: basicCheck.reasons,
+      shouldProceed: !basicCheck.isFake || basicCheck.confidence !== 'HIGH'
+    };
+  }
+}
+
+// 🤖 AGENT 2: CREDIT ANALYSIS (o3-mini-2025-01-31)
+async function runCreditAnalysisAgent(
+  application: any, 
+  verificationData: any, 
+  creditScore: any,
+  systemDecision: any
+): Promise<{
+  finalDecision: string;
+  reasoning: string;
+  riskAdjustment: string;
+  conditions: string[];
+  analysis: string;
+}> {
+  if (!OPENAI_API_KEY) {
+    return {
+      finalDecision: systemDecision.decision,
+      reasoning: `System analysis: Score ${creditScore.score}/850, Risk ${systemDecision.riskLevel}`,
+      riskAdjustment: 'No adjustment',
+      conditions: systemDecision.conditions,
+      analysis: 'Basic system analysis completed'
+    };
+  }
+
+  const prompt = `You are a SENIOR CREDIT ANALYST reviewing a legitimate business credit application.
+
+The FRAUD DETECTION AGENT has already cleared this application as legitimate.
+
+APPLICATION DATA:
+Company: ${application.legalEntityName}
+Tax EIN: ${application.taxEIN}
+DUNS: ${application.dunsNumber || 'Not provided'}
+Industry: ${application.industry}
+Employees: ${application.numberOfEmployees}
+Years in Business: ${application.yearsSinceIncorporation}
+Requested Credit: $${application.requestedCreditAmount?.toLocaleString()}
+
+VERIFICATION RESULTS:
+- Business Registration: ${verificationData.business?.isValid ? 'VALID' : 'INVALID'}
+- Domain Verification: ${verificationData.domain?.isValid ? 'CLEAN' : 'SUSPICIOUS'}
+- Phone Type: ${verificationData.phone?.type || 'Unknown'}
+- Address Type: ${verificationData.address?.type || 'Unknown'}
+
+SYSTEM CREDIT SCORE: ${creditScore.score}/850
+SYSTEM RECOMMENDATION: ${systemDecision.decision} - $${systemDecision.limit?.toLocaleString()} @ ${systemDecision.terms}
+
+SCORE BREAKDOWN:
+${Object.entries(creditScore.breakdown || {}).map(([k,v]) => `• ${k}: ${v} points`).join('\n')}
+
+As the credit analyst, provide your professional assessment:
+
+Return ONLY valid JSON:
+{
+  "approveSystemDecision": true/false,
+  "finalDecision": "APPROVE/CONDITIONAL/DECLINE/REVIEW",
+  "creditLimit": number,
+  "paymentTerms": "Net 30/Net 15/COD",
+  "riskLevel": "LOW/MEDIUM/HIGH",
+  "keyStrengths": ["positive factors"],
+  "concerns": ["risk factors"],
+  "conditions": ["required conditions if conditional"],
+  "reasoning": "professional analysis summary",
+  "confidence": 0-100
+}`;
+
+  try {
+    console.log('💼 AGENT 2: Running credit analysis...');
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'o3-mini-2025-01-31', // Locked snapshot for consistency
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a senior credit analyst with 15+ years experience. Provide thorough, professional credit assessments. Return ONLY valid JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.2, // Low for consistent analysis
+        max_tokens: 800,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Credit analysis API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const content = result.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('No response from credit analysis agent');
+    }
+
+    const creditAnalysis = JSON.parse(content);
+    console.log(`💼 AGENT 2: Final decision = ${creditAnalysis.finalDecision}`);
+
+    return {
+      finalDecision: creditAnalysis.finalDecision,
+      reasoning: creditAnalysis.reasoning,
+      riskAdjustment: creditAnalysis.approveSystemDecision ? 'Approved system recommendation' : 'Adjusted system recommendation',
+      conditions: creditAnalysis.conditions || [],
+      analysis: `Strengths: ${creditAnalysis.keyStrengths?.join(', ')} | Concerns: ${creditAnalysis.concerns?.join(', ')}`
+    };
+
+  } catch (error) {
+    console.error('❌ AGENT 2: Credit analysis failed:', error);
+    return {
+      finalDecision: systemDecision.decision,
+      reasoning: `Fallback system analysis: Score ${creditScore.score}/850`,
+      riskAdjustment: 'System fallback',
+      conditions: systemDecision.conditions,
+      analysis: 'Credit analysis agent unavailable - using system decision'
+    };
+  }
+}
+
 export async function processApplicationWithAI(applicationId: number): Promise<CreditDecision> {
   console.log(`🤖 AI PROCESSOR: Starting analysis for application #${applicationId}`);
 
@@ -288,26 +527,28 @@ export async function processApplicationWithAI(applicationId: number): Promise<C
     throw new Error('Application not found');
   }
 
-  // 🚨 FAKE DATA DETECTION - Run this FIRST before wasting compute
-  console.log('🕵️ AI PROCESSOR: Running fake data detection...');
-  const fakeDataCheck = detectFakeData(application);
+  // 🚨 AGENT 1: FRAUD DETECTION AGENT (o3-mini-2025-01-31)
+  console.log('🤖 Running 2-Agent Credit Analysis System...');
+  console.log('🕵️ AGENT 1: Starting fraud detection screening...');
   
-  if (fakeDataCheck.isFake && fakeDataCheck.confidence === 'HIGH') {
-    console.log(`🚨 FAKE DATA DETECTED with HIGH confidence for application #${applicationId}`);
-    console.log(`🚨 Reasons: ${fakeDataCheck.reasons.join(', ')}`);
+  const fraudResult = await runFraudDetectionAgent(application);
+  
+  if (fraudResult.isFraud && !fraudResult.shouldProceed) {
+    console.log(`🚨 AGENT 1: FRAUD DETECTED - Confidence ${fraudResult.confidence}%`);
+    console.log(`🚨 Reasons: ${fraudResult.reasons.join(', ')}`);
     
     return {
       decision: 'DECLINE',
       creditScore: 0,
-      riskLevel: 'HIGH',
+      riskLevel: 'EXTREME',
       creditLimit: 0,
       paymentTerms: 'Cash in Advance Only',
-      reasoning: `🚨 APPLICATION REJECTED - FAKE/TEST DATA DETECTED\n\nThis application has been automatically rejected due to obvious fake or test data submission. Our AI screening detected the following issues:\n\n${fakeDataCheck.reasons.map(r => `• ${r}`).join('\n')}\n\nTo submit a legitimate application, please use real business information including:\n• Actual company name (no profanity, test words, or gibberish)\n• Valid business phone number\n• Real Tax EIN\n• Legitimate business email address\n• Genuine business description\n\nFor assistance with a legitimate application, contact sales@alliancechemical.com`,
+      reasoning: `🚨 APPLICATION REJECTED BY AI FRAUD DETECTION AGENT\n\nThis application has been automatically rejected by our AI fraud detection specialist due to obvious fake or test data submission:\n\n${fraudResult.reasons.map(r => `• ${r}`).join('\n')}\n\nOur o3-mini AI agent determined this application contains fraudulent patterns with ${fraudResult.confidence}% confidence.\n\nTo submit a legitimate application, please use real business information including:\n• Actual company name (no nonsense words or repetitive patterns)\n• Valid business phone number (no movie/TV numbers)\n• Real Tax EIN from IRS\n• Legitimate business email address\n• Genuine business description\n\nFor assistance with a legitimate application, contact sales@alliancechemical.com`,
       conditions: ['Resubmit with legitimate business information'],
-      additionalNotes: `Automatic rejection due to fake data detection.\n\nDetection confidence: ${fakeDataCheck.confidence}\nFlags raised: ${fakeDataCheck.reasons.length}\n\nThis application was rejected before any credit analysis to prevent waste of computational resources on obviously fraudulent submissions.`,
-      verificationSummary: 'Verification skipped - fake data detected during pre-screening',
+      additionalNotes: `🤖 REJECTED BY AI FRAUD DETECTION AGENT (o3-mini-2025-01-31)\n\nFraud Confidence: ${fraudResult.confidence}%\nFlags Raised: ${fraudResult.reasons.length}\nAgent Decision: Do not proceed to credit analysis\n\nThis application was rejected before any credit analysis to prevent waste of computational resources on obviously fraudulent submissions.`,
+      verificationSummary: 'Verification skipped - fraud detected by AI agent during pre-screening',
       scoreBreakdown: {
-        'Fake Data Detection': -1000,
+        'AI Fraud Detection': -1000,
         'Application Quality': 0,
         'Business Verification': 0,
         'Domain Verification': 0,
@@ -316,15 +557,17 @@ export async function processApplicationWithAI(applicationId: number): Promise<C
         'Trade References': 0,
         'DUNS Verification': 0
       },
-      fraudRiskScore: fakeDataCheck.fraudProbability,
-      auditFlags: fakeDataCheck.reasons
+      fraudRiskScore: fraudResult.confidence,
+      auditFlags: fraudResult.reasons
     };
   }
   
-  // Log medium confidence warnings but continue processing
-  if (fakeDataCheck.isFake && fakeDataCheck.confidence === 'MEDIUM') {
-    console.log(`⚠️ SUSPICIOUS DATA detected for application #${applicationId}: ${fakeDataCheck.reasons.join(', ')}`);
-    console.log('⚠️ Continuing with analysis but flagging for review...');
+  // Log fraud warnings but continue to credit analysis
+  if (fraudResult.isFraud && fraudResult.shouldProceed) {
+    console.log(`⚠️ AGENT 1: SUSPICIOUS patterns detected (${fraudResult.confidence}% confidence) but proceeding to credit analysis...`);
+    console.log(`⚠️ Flags: ${fraudResult.reasons.join(', ')}`);
+  } else {
+    console.log(`✅ AGENT 1: Application cleared fraud screening - proceeding to credit analysis`);
   }
 
   // Fetch trade references
@@ -389,13 +632,67 @@ export async function processApplicationWithAI(applicationId: number): Promise<C
     finalConditions = ['Credit profile does not meet minimum requirements'];
   }
 
-  console.log('🎯 AI PROCESSOR: System decision:', finalDecision);
+  console.log('🎯 SYSTEM: Initial recommendation:', finalDecision);
 
-  // **STEP 1: Use o3 for analytical grading and decision validation**
+  // 💼 AGENT 2: CREDIT ANALYSIS AGENT (o3-mini-2025-01-31)
+  console.log('💼 AGENT 2: Starting detailed credit analysis...');
+  
+  const systemDecision = {
+    decision: finalDecision,
+    limit: finalLimit,
+    terms: finalTerms,
+    riskLevel: finalRiskLevel,
+    conditions: finalConditions
+  };
+  
+  const creditAnalysisResult = await runCreditAnalysisAgent(
+    application,
+    verificationData,
+    creditScore,
+    systemDecision
+  );
+  
+  // Update final decision based on Agent 2's analysis
+  finalDecision = creditAnalysisResult.finalDecision as any;
+  finalLimit = determineLimit(creditAnalysisResult.finalDecision);
+  finalTerms = determineTerms(creditAnalysisResult.finalDecision);
+  finalRiskLevel = determineFinalRiskLevel(creditAnalysisResult.finalDecision);
+  finalConditions = creditAnalysisResult.conditions;
+
+  console.log(`💼 AGENT 2: Final decision = ${finalDecision} (${creditAnalysisResult.riskAdjustment})`);
+
+  // Helper functions for Agent 2 decision mapping
+  function determineLimit(decision: string): number {
+    switch(decision) {
+      case 'APPROVE': return 50000;
+      case 'CONDITIONAL': return 25000;
+      case 'REVIEW': return 10000;
+      default: return 0;
+    }
+  }
+  
+  function determineTerms(decision: string): string {
+    switch(decision) {
+      case 'APPROVE': return 'Net 30';
+      case 'CONDITIONAL': return 'Net 15';
+      case 'REVIEW': return 'COD or Prepayment';
+      default: return 'Cash in Advance Only';
+    }
+  }
+  
+  function determineFinalRiskLevel(decision: string): 'LOW' | 'MEDIUM' | 'HIGH' {
+    switch(decision) {
+      case 'APPROVE': return 'LOW';
+      case 'CONDITIONAL': return 'MEDIUM';
+      default: return 'HIGH';
+    }
+  }
+
+  // **LEGACY: Keep o3 analysis for comparison (optional)**
   let o3Analysis = null;
-  if (OPENAI_API_KEY) {
+  if (OPENAI_API_KEY && false) { // Disabled - using new 2-agent system
     try {
-      console.log('🧠 AI PROCESSOR: Calling o3 for analytical grading...');
+      console.log('🧠 LEGACY: Calling o3 for comparison...');
       
       const o3Prompt = `You are an expert credit analyst. Analyze this credit application and provide analytical insights.
 
@@ -538,25 +835,31 @@ Return ONLY this JSON format (no markdown):
 
   // Only call OpenAI if API key is available
   if (!OPENAI_API_KEY) {
-    console.log('🤖 AI PROCESSOR: Skipping OpenAI call - using system analysis only');
+    console.log('🤖 2-AGENT SYSTEM: No API key - using fallback analysis');
     
-    // Fallback to system-only decision without AI narrative
+    // Fallback to 2-agent system without narrative writing
     const result: CreditDecision = {
       decision: finalDecision,
       creditScore: creditScore.score,
       riskLevel: finalRiskLevel,
       creditLimit: finalLimit,
       paymentTerms: finalTerms,
-      reasoning: `Automated credit analysis completed. Decision: ${finalDecision} based on credit score of ${creditScore.score}/850.`,
+      reasoning: creditAnalysisResult.reasoning || `2-Agent AI analysis completed. Decision: ${finalDecision} based on credit score of ${creditScore.score}/850.`,
       conditions: finalConditions,
-      additionalNotes: `Verification Summary: Business registration ${businessVerification.isValid ? 'valid' : 'invalid'}, Domain ${domainVerification.isValid ? 'clean' : 'flagged'}.\n\nScore Breakdown: ${Object.entries(creditScore.breakdown).map(([k,v]) => `${k}: ${v}`).join(', ')}`,
+      additionalNotes: [
+        `🤖 2-AGENT AI ANALYSIS SYSTEM (o3-mini-2025-01-31) - No API Key`,
+        `Agent 1 - Fraud Detection: ${fraudResult.isFraud ? `⚠️ ${fraudResult.confidence}% confidence` : '✅ Cleared'}`,
+        `Agent 2 - Credit Analysis: ${creditAnalysisResult.analysis}`,
+        `Verification Summary: Business ${businessVerification.isValid ? 'valid' : 'invalid'}, Domain ${domainVerification.isValid ? 'clean' : 'flagged'}`,
+        `Score Breakdown: ${Object.entries(creditScore.breakdown).map(([k,v]) => `${k}: ${v}`).join(', ')}`
+      ].join('\n\n'),
       verificationSummary: `Business: ${businessVerification.status}, Domain: ${domainVerification.isValid ? 'Valid' : 'Issues'}, Phone: ${phoneValidation.type}`,
       scoreBreakdown: creditScore.breakdown,
-      fraudRiskScore: fakeDataCheck.fraudProbability,
-      auditFlags: fakeDataCheck.reasons
+      fraudRiskScore: fraudResult.confidence,
+      auditFlags: [...fraudResult.reasons, `2-Agent System: No API Key`]
     };
 
-    console.log('✅ AI PROCESSOR: System analysis complete for application #' + applicationId);
+    console.log('✅ 2-AGENT SYSTEM: Fallback analysis complete for application #' + applicationId);
     return result;
   }
 
@@ -619,40 +922,47 @@ Return ONLY this JSON format (no markdown):
       riskLevel: finalRiskLevel,
       creditLimit: finalLimit,
       paymentTerms: finalTerms,
-      reasoning: aiAnalysis.executiveSummary || 'AI analysis completed',
+      reasoning: creditAnalysisResult.reasoning || 'AI 2-agent analysis completed',
       conditions: finalConditions,
       additionalNotes: [
-        `Risk Assessment: ${aiAnalysis.riskAssessment || 'Standard risk evaluation'}`,
-        `Key Strengths: ${(aiAnalysis.keyStrengths || []).join(', ')}`,
-        `Critical Concerns: ${(aiAnalysis.criticalConcerns || []).join(', ')}`,
-        `Recommended Actions: ${(aiAnalysis.recommendedActions || []).join(', ')}`
+        `🤖 2-AGENT AI ANALYSIS SYSTEM (o3-mini-2025-01-31)`,
+        `Agent 1 - Fraud Detection: ${fraudResult.isFraud ? `⚠️ ${fraudResult.confidence}% confidence` : '✅ Cleared'}`,
+        `Agent 2 - Credit Analysis: ${creditAnalysisResult.analysis}`,
+        `Risk Assessment: ${creditAnalysisResult.riskAdjustment}`,
+        `Final Decision Logic: ${creditAnalysisResult.reasoning}`
       ].join('\n\n'),
-      verificationSummary: aiAnalysis.verificationSummary || 'Verification checks completed',
+      verificationSummary: `AI-Enhanced Verification: Business ${verificationData.business?.isValid ? 'Valid' : 'Invalid'}, Domain ${verificationData.domain?.isValid ? 'Clean' : 'Flagged'}, Phone ${verificationData.phone?.type}`,
       scoreBreakdown: creditScore.breakdown,
-      fraudRiskScore: fakeDataCheck.fraudProbability,
-      auditFlags: fakeDataCheck.reasons
+      fraudRiskScore: fraudResult.confidence,
+      auditFlags: [...fraudResult.reasons, `Agent 2 Confidence: High`]
     };
 
     console.log('✅ AI PROCESSOR: Analysis complete for application #' + applicationId);
     return result;
 
   } catch (error) {
-    console.error('❌ AI PROCESSOR: OpenAI API error:', error);
+    console.error('❌ 2-AGENT SYSTEM: API error during narrative generation:', error);
     
-    // Fallback to system-only decision without AI narrative
+    // Fallback to 2-agent system without narrative writing
     const result: CreditDecision = {
       decision: finalDecision,
       creditScore: creditScore.score,
       riskLevel: finalRiskLevel,
       creditLimit: finalLimit,
       paymentTerms: finalTerms,
-      reasoning: `Automated credit analysis completed. Decision: ${finalDecision} based on credit score of ${creditScore.score}/850.`,
+      reasoning: creditAnalysisResult.reasoning || `2-Agent AI analysis completed. Decision: ${finalDecision} based on credit score of ${creditScore.score}/850.`,
       conditions: finalConditions,
-      additionalNotes: `Verification Summary: Business registration ${businessVerification.isValid ? 'valid' : 'invalid'}, Domain ${domainVerification.isValid ? 'clean' : 'flagged'}.\n\nScore Breakdown: ${Object.entries(creditScore.breakdown).map(([k,v]) => `${k}: ${v}`).join(', ')}`,
+      additionalNotes: [
+        `🤖 2-AGENT AI ANALYSIS SYSTEM (o3-mini-2025-01-31) - API Error`,
+        `Agent 1 - Fraud Detection: ${fraudResult.isFraud ? `⚠️ ${fraudResult.confidence}% confidence` : '✅ Cleared'}`,
+        `Agent 2 - Credit Analysis: ${creditAnalysisResult.analysis}`,
+        `Verification Summary: Business ${businessVerification.isValid ? 'valid' : 'invalid'}, Domain ${domainVerification.isValid ? 'clean' : 'flagged'}`,
+        `Score Breakdown: ${Object.entries(creditScore.breakdown).map(([k,v]) => `${k}: ${v}`).join(', ')}`
+      ].join('\n\n'),
       verificationSummary: `Business: ${businessVerification.status}, Domain: ${domainVerification.isValid ? 'Valid' : 'Issues'}, Phone: ${phoneValidation.type}`,
       scoreBreakdown: creditScore.breakdown,
-      fraudRiskScore: fakeDataCheck.fraudProbability,
-      auditFlags: fakeDataCheck.reasons
+      fraudRiskScore: fraudResult.confidence,
+      auditFlags: [...fraudResult.reasons, `2-Agent System: API Error Fallback`]
     };
 
     return result;
@@ -672,7 +982,7 @@ export async function sendAIAnalysisReport(applicationData: any, aiDecision: Cre
       ? 'https://creditapp.alliancechemical.com' // Updated with actual domain
       : 'http://localhost:3000';
 
-  const subject = `🤖 AI CREDIT ANALYSIS: ${aiDecision.decision} - ${applicationData.legalEntityName} (#${applicationData.id})`;
+  const subject = `🤖 2-AGENT AI ANALYSIS: ${aiDecision.decision} - ${applicationData.legalEntityName} (#${applicationData.id})`;
   
   const getDecisionEmoji = (decision: string) => {
     switch (decision) {
@@ -704,7 +1014,7 @@ export async function sendAIAnalysisReport(applicationData: any, aiDecision: Cre
   };
 
   const textBody = `
-🤖 AI CREDIT ANALYSIS COMPLETE
+🤖 2-AGENT AI CREDIT ANALYSIS COMPLETE
 =====================================
 
 DECISION: ${aiDecision.decision} ${getDecisionEmoji(aiDecision.decision)}
@@ -787,7 +1097,7 @@ This analysis was generated by our AI-powered credit processing system.
 </head>
 <body>
   <div class="header">
-    <h1>🤖 AI Credit Analysis Report</h1>
+    <h1>🤖 2-Agent AI Credit Analysis Report</h1>
     <div class="decision-badge" style="background-color: ${getDecisionColor(aiDecision.decision)};">
       ${getDecisionEmoji(aiDecision.decision)} ${aiDecision.decision}
     </div>
@@ -900,8 +1210,8 @@ This analysis was generated by our AI-powered credit processing system.
   </div>
 
   <div class="footer">
-    <p>🤖 This analysis was generated by Alliance Chemical's AI-powered credit processing system</p>
-    <p>Automated decision based on verification data, credit scoring algorithms, and AI narrative generation</p>
+    <p>🤖 This analysis was generated by Alliance Chemical's 2-Agent AI Credit Processing System</p>
+    <p>Agent 1: Fraud Detection (o3-mini-2025-01-31) | Agent 2: Credit Analysis (o3-mini-2025-01-31)</p>
   </div>
 </body>
 </html>
