@@ -30,31 +30,49 @@ interface ApplicationData {
   dunsNumber?: string;
   phoneNo: string;
   billToAddress: string;
-  billToCityStateZip: string;
+  billToCity?: string;
+  billToState?: string;
+  billToZip?: string;
+  billToCityStateZip?: string; // Keep for backward compatibility
   shipToAddress: string;
-  shipToCityStateZip: string;
+  shipToCity?: string;
+  shipToState?: string;
+  shipToZip?: string;
+  shipToCityStateZip?: string; // Keep for backward compatibility
   buyerNameEmail: string;
   accountsPayableNameEmail: string;
   wantInvoicesEmailed?: boolean;
   invoiceEmail?: string;
   trade1Name?: string;
   trade1Address?: string;
-  trade1CityStateZip?: string;
+  trade1City?: string;
+  trade1State?: string;
+  trade1Zip?: string;
+  trade1CityStateZip?: string; // Keep for backward compatibility
   trade1Attn?: string;
   trade1Email?: string;
   trade1FaxNo?: string;
+  trade1Phone?: string;
   trade2Name?: string;
   trade2Address?: string;
-  trade2CityStateZip?: string;
+  trade2City?: string;
+  trade2State?: string;
+  trade2Zip?: string;
+  trade2CityStateZip?: string; // Keep for backward compatibility
   trade2Attn?: string;
   trade2Email?: string;
   trade2FaxNo?: string;
+  trade2Phone?: string;
   trade3Name?: string;
   trade3Address?: string;
-  trade3CityStateZip?: string;
+  trade3City?: string;
+  trade3State?: string;
+  trade3Zip?: string;
+  trade3CityStateZip?: string; // Keep for backward compatibility
   trade3Attn?: string;
   trade3Email?: string;
   trade3FaxNo?: string;
+  trade3Phone?: string;
   termsAgreed?: boolean;
 }
 

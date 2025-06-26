@@ -98,6 +98,10 @@ export async function POST(request: NextRequest) {
     });
     
     try {
+      // Combine separate address fields for database storage
+      const billToCityStateZip = `${data.billToCity}, ${data.billToState} ${data.billToZip}`;
+      const shipToCityStateZip = `${data.shipToCity}, ${data.shipToState} ${data.shipToZip}`;
+      
       const [application] = await db.insert(customerApplications).values({
         legalEntityName: data.legalEntityName,
         dba: data.dba,
@@ -105,9 +109,9 @@ export async function POST(request: NextRequest) {
         dunsNumber: data.dunsNumber,
         phoneNo: data.phoneNo,
         billToAddress: data.billToAddress,
-        billToCityStateZip: data.billToCityStateZip,
+        billToCityStateZip: billToCityStateZip,
         shipToAddress: data.shipToAddress,
-        shipToCityStateZip: data.shipToCityStateZip,
+        shipToCityStateZip: shipToCityStateZip,
         buyerNameEmail: data.buyerNameEmail,
         accountsPayableNameEmail: data.accountsPayableNameEmail,
         wantInvoicesEmailed: data.wantInvoicesEmailed,
@@ -129,37 +133,46 @@ export async function POST(request: NextRequest) {
       const tradeReferencesToInsert = [];
       
       if (data.trade1Name) {
+        const trade1CityStateZip = data.trade1City && data.trade1State && data.trade1Zip 
+          ? `${data.trade1City}, ${data.trade1State} ${data.trade1Zip}` 
+          : '';
         tradeReferencesToInsert.push({
           applicationId: application.id,
           name: data.trade1Name,
           faxNo: data.trade1FaxNo,
           address: data.trade1Address,
           email: data.trade1Email,
-          cityStateZip: data.trade1CityStateZip,
+          cityStateZip: trade1CityStateZip,
           attn: data.trade1Attn,
         });
       }
 
       if (data.trade2Name) {
+        const trade2CityStateZip = data.trade2City && data.trade2State && data.trade2Zip 
+          ? `${data.trade2City}, ${data.trade2State} ${data.trade2Zip}` 
+          : '';
         tradeReferencesToInsert.push({
           applicationId: application.id,
           name: data.trade2Name,
           faxNo: data.trade2FaxNo,
           address: data.trade2Address,
           email: data.trade2Email,
-          cityStateZip: data.trade2CityStateZip,
+          cityStateZip: trade2CityStateZip,
           attn: data.trade2Attn,
         });
       }
 
       if (data.trade3Name) {
+        const trade3CityStateZip = data.trade3City && data.trade3State && data.trade3Zip 
+          ? `${data.trade3City}, ${data.trade3State} ${data.trade3Zip}` 
+          : '';
         tradeReferencesToInsert.push({
           applicationId: application.id,
           name: data.trade3Name,
           faxNo: data.trade3FaxNo,
           address: data.trade3Address,
           email: data.trade3Email,
-          cityStateZip: data.trade3CityStateZip,
+          cityStateZip: trade3CityStateZip,
           attn: data.trade3Attn,
         });
       }
@@ -190,7 +203,10 @@ export async function POST(request: NextRequest) {
           // Send application summary email
           sendApplicationSummary({
             id: application.id,
-            ...data
+            ...data,
+            // Include combined fields for backward compatibility
+            billToCityStateZip,
+            shipToCityStateZip,
           }).catch(error => {
             console.error('❌ Failed to send application summary:', error);
           }),
@@ -202,7 +218,10 @@ export async function POST(request: NextRequest) {
                 console.log('✅ AI processing completed:', aiDecision.decision);
                 return sendAIAnalysisReport({
                   id: application.id,
-                  ...data
+                  ...data,
+                  // Include combined fields for backward compatibility
+                  billToCityStateZip,
+                  shipToCityStateZip,
                 }, aiDecision);
               })
               .then(() => {
