@@ -688,104 +688,10 @@ export async function processApplicationWithAI(applicationId: number): Promise<C
     }
   }
 
-  // **LEGACY: Keep o3 analysis for comparison (optional)**
-  let o3Analysis = null;
-  if (OPENAI_API_KEY && false) { // Disabled - using new 2-agent system
-    try {
-      console.log('🧠 LEGACY: Calling o3 for comparison...');
-      
-      const o3Prompt = `You are an expert credit analyst. Analyze this credit application and provide analytical insights.
+  // Note: Legacy o3 analysis removed - using 2-agent system (Agent 1: Fraud Detection, Agent 2: Credit Analysis)
 
-*** APPLICATION DATA ***
-Company: ${application.legalEntityName}
-EIN: ${application.taxEIN}
-DUNS: ${application.dunsNumber || 'Not provided'}
-Industry: Based on business description and trade references
-Contact: ${application.buyerNameEmail}
-Trade References: ${tradeReferencesData.map(ref => ref.name).filter(Boolean).length}/3 provided
-
-*** VERIFICATION RESULTS ***
-- Business Registration: ${businessVerification.isValid} (Status: ${businessVerification.status})
-- Domain Analysis: ${domainVerification.isValid ? 'Valid' : 'Suspicious'} (Issues: ${domainVerification.suspiciousIndicators.join(', ') || 'None'})
-- Phone Validation: ${phoneValidation.isValid ? 'Valid' : 'Invalid'} (Type: ${phoneValidation.type})
-- Address Analysis: ${addressValidation.type} (Risk Factors: ${addressValidation.riskFactors.join(', ') || 'None'})
-
-*** CURRENT SYSTEM SCORE: ${creditScore.score}/850 ***
-Score Breakdown:
-${Object.entries(creditScore.breakdown).map(([key, value]) => `- ${key}: ${value > 0 ? '+' : ''}${value} points`).join('\n')}
-
-*** SYSTEM RECOMMENDATION: ${finalDecision} ***
-- Credit Limit: $${finalLimit.toLocaleString()}
-- Risk Level: ${finalRiskLevel}
-- Payment Terms: ${finalTerms}
-
-Analyze this data and provide:
-1. Validation of the credit score (should it be higher/lower?)
-2. Risk assessment refinement
-3. Key business strengths and red flags
-4. Specific conditions or monitoring requirements
-
-Return JSON only:
-{
-  "scoreValidation": "brief assessment of whether the ${creditScore.score} score is appropriate",
-  "adjustedRiskLevel": "${finalRiskLevel}" or suggest "LOW"/"MEDIUM"/"HIGH",
-  "keyStrengths": ["specific positive factors identified"],
-  "criticalConcerns": ["specific red flags or risks"],
-  "recommendedConditions": ["specific conditions for approval/monitoring"],
-  "analyticalSummary": "2-3 sentence expert assessment of creditworthiness"
-}`;
-
-      const o3Response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'o3-mini', // Using o3 for analytical work
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert credit analyst. Provide precise analytical insights based on verification data. Return only valid JSON.'
-            },
-            {
-              role: 'user',
-              content: o3Prompt
-            }
-          ],
-          temperature: 0.1, // Lower temperature for analytical work
-          max_tokens: 800,
-        }),
-      });
-
-      if (o3Response.ok) {
-        const o3Result = await o3Response.json();
-        const o3Content = o3Result.choices[0]?.message?.content;
-        
-        if (o3Content) {
-          try {
-            o3Analysis = JSON.parse(o3Content);
-            console.log('✅ o3 analytical grading complete');
-            
-            // Optionally adjust risk level based on o3 analysis
-            if (o3Analysis.adjustedRiskLevel && o3Analysis.adjustedRiskLevel !== finalRiskLevel) {
-              console.log(`📊 o3 suggests risk adjustment: ${finalRiskLevel} → ${o3Analysis.adjustedRiskLevel}`);
-              finalRiskLevel = o3Analysis.adjustedRiskLevel;
-            }
-          } catch (parseError) {
-            console.error('❌ Failed to parse o3 JSON response:', parseError);
-          }
-        }
-      } else {
-        console.error('❌ o3 API error:', o3Response.status);
-      }
-    } catch (error) {
-      console.error('❌ o3 API call failed:', error);
-    }
-  }
-
-  // **STEP 2: Use GPT-4o for narrative writing based on o3 analysis**
-  const prompt = `You are a professional credit analyst writing an executive summary. The credit decision has been made by our automated system and refined by expert analysis.
+  // **NARRATIVE WRITING: Use GPT-4o for professional reporting based on 2-agent analysis**
+  const prompt = `You are a professional credit analyst writing an executive summary. The credit decision has been made by our 2-agent AI analysis system.
 
 *** FINAL DECISION (DO NOT CHANGE) ***
 - Decision: ${finalDecision}
@@ -800,14 +706,11 @@ Return JSON only:
 - Phone Validation: ${phoneValidation.isValid ? 'Valid' : 'Invalid'} (Type: ${phoneValidation.type})
 - Address Type: ${addressValidation.type} (Risk Factors: ${addressValidation.riskFactors.join(', ') || 'None'})
 
-*** EXPERT ANALYTICAL INSIGHTS (from o3) ***
-${o3Analysis ? `
-Score Validation: ${o3Analysis.scoreValidation}
-Key Strengths: ${o3Analysis.keyStrengths?.join(', ')}
-Critical Concerns: ${o3Analysis.criticalConcerns?.join(', ')}
-Expert Summary: ${o3Analysis.analyticalSummary}
-Recommended Conditions: ${o3Analysis.recommendedConditions?.join(', ')}
-` : 'Expert analysis not available - using system analysis only'}
+*** 2-AGENT AI ANALYSIS INSIGHTS ***
+Agent 1 - Fraud Detection: ${fraudResult.isFraud ? `⚠️ ${fraudResult.confidence}% fraud confidence` : '✅ Cleared fraud screening'}
+Agent 2 - Credit Analysis: ${creditAnalysisResult.analysis}
+Risk Assessment: ${creditAnalysisResult.riskAdjustment}
+Final Decision Logic: ${creditAnalysisResult.reasoning}
 
 *** CREDIT SCORE BREAKDOWN ***
 ${Object.entries(creditScore.breakdown).map(([key, value]) => `- ${key}: ${value > 0 ? '+' : ''}${value} points`).join('\n')}
@@ -819,7 +722,7 @@ DUNS: ${application.dunsNumber || 'Not provided'}
 Contact: ${application.buyerNameEmail}
 Trade References: ${tradeReferencesData.map(ref => ref.name).filter(Boolean).length}/3 provided
 
-Write a professional, comprehensive credit analysis report that incorporates the expert insights above. Focus on clear communication to business stakeholders.
+Write a professional, comprehensive credit analysis report that incorporates the 2-agent AI analysis insights above. Focus on clear communication to business stakeholders.
 
 Return ONLY this JSON format (no markdown):
 {
@@ -831,7 +734,7 @@ Return ONLY this JSON format (no markdown):
   "recommendedActions": ["List 2-3 specific next steps or monitoring requirements"]
 }`;
 
-  console.log('📝 AI PROCESSOR: Calling GPT-4o for narrative writing...');
+  console.log('📝 2-AGENT SYSTEM: Calling GPT-4o for narrative writing...');
 
   // Only call OpenAI if API key is available
   if (!OPENAI_API_KEY) {
@@ -937,7 +840,7 @@ Return ONLY this JSON format (no markdown):
       auditFlags: [...fraudResult.reasons, `Agent 2 Confidence: High`]
     };
 
-    console.log('✅ AI PROCESSOR: Analysis complete for application #' + applicationId);
+    console.log('✅ 2-AGENT SYSTEM: Analysis complete for application #' + applicationId);
     return result;
 
   } catch (error) {
