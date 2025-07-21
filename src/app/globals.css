@@ -19,3 +19,13 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Ensure text visibility on semi-transparent backgrounds */
+.bg-white\/80, .bg-white\/50 {
+  color: #1f2937 !important;
+}
+
+/* Ensure proper text color inheritance */
+* {
+  color: inherit;
+}
