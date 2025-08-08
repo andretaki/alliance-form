@@ -24,23 +24,23 @@ interface EmailDataBase {
 
 interface ApplicationData {
   id?: number;
-  legalEntityName: string;
+  legalEntityName?: string;
   dba?: string;
-  taxEIN: string;
+  taxEIN?: string;
   dunsNumber?: string;
-  phoneNo: string;
-  billToAddress: string;
+  phoneNo?: string;
+  billToAddress?: string;
   billToCity?: string;
   billToState?: string;
   billToZip?: string;
   billToCityStateZip?: string; // Keep for backward compatibility
-  shipToAddress: string;
+  shipToAddress?: string;
   shipToCity?: string;
   shipToState?: string;
   shipToZip?: string;
   shipToCityStateZip?: string; // Keep for backward compatibility
-  buyerNameEmail: string;
-  accountsPayableNameEmail: string;
+  buyerNameEmail?: string;
+  accountsPayableNameEmail?: string;
   wantInvoicesEmailed?: boolean;
   invoiceEmail?: string;
   trade1Name?: string;

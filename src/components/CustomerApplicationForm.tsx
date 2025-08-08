@@ -45,23 +45,12 @@ const detectFakeData = (value: string): boolean => {
 
 // Form validation schema with enhanced validation
 const formSchema = z.object({
-  // Company Information - REQUIRED
-  legalEntityName: z.string()
-    .min(3, { message: "Legal Entity Name must be at least 3 characters" })
-    .refine(val => !detectFakeData(val), {
-      message: "Please enter your actual company name (no test data, repetitive patterns, or nonsense text)"
-    })
-    .refine(val => /^[a-zA-Z0-9\s\-&.,()]+$/.test(val), {
-      message: "Company name contains invalid characters"
-    }),
+  // Company Information - OPTIONAL
+  legalEntityName: z.string().optional(),
   dba: z.string().optional(),
   
-  // Tax ID with format validation - REQUIRED
-  taxEIN: z.string()
-    .min(1, { message: "Tax EIN is required" })
-    .regex(/^(\d{9}|\d{2}-\d{7})$/, { 
-      message: "Tax EIN must be 9 digits (will be auto-formatted)" 
-    }),
+  // Tax ID with format validation - OPTIONAL
+  taxEIN: z.string().optional(),
   
   // DUNS strongly recommended but optional
   dunsNumber: z.string()
@@ -70,28 +59,24 @@ const formSchema = z.object({
       message: "DUNS Number must be exactly 9 digits"
     }),
   
-  // Phone with format validation - REQUIRED
-  phoneNo: z.string()
-    .min(10, { message: "Phone Number is required" })
-    .regex(/^[\(\)\d\s\-\+\.]+$/, { 
-      message: "Please enter a valid phone number" 
-    }),
+  // Phone with format validation - OPTIONAL
+  phoneNo: z.string().optional(),
   
   // Additional Authorized Purchasers
   hasAdditionalPurchasers: z.boolean().optional(),
   additionalPurchasers: z.array(z.object({
-    name: z.string().min(1, "Name is required"),
+    name: z.string().optional(),
     title: z.string().optional(),
-    email: z.string().email("Valid email is required"),
+    email: z.string().optional(),
     phone: z.string().optional()
   })).optional(),
   
-  // Business Information - ALL REQUIRED
-  industry: z.string().min(1, { message: "Industry selection is required" }),
-  companyType: z.string().min(1, { message: "Company type is required" }),
-  numberOfEmployees: z.string().min(1, { message: "Number of employees is required" }),
-  yearsSinceIncorporation: z.string().min(1, { message: "Years since incorporation is required" }),
-  stateIncorporated: z.string().min(1, { message: "State of incorporation is required" }),
+  // Business Information - ALL OPTIONAL
+  industry: z.string().optional(),
+  companyType: z.string().optional(),
+  numberOfEmployees: z.string().optional(),
+  yearsSinceIncorporation: z.string().optional(),
+  stateIncorporated: z.string().optional(),
   companyValuation: z.string().optional(),
   businessWebsite: z.string()
     .optional()
@@ -99,41 +84,26 @@ const formSchema = z.object({
       message: "Please enter a valid website URL"
     }),
   
-  // Addresses - Required by backend
-  billToAddress: z.string().min(1, { message: "Billing address is required" }),
-  billToCity: z.string().min(1, { message: "Billing city is required" }),
-  billToState: z.string().min(1, { message: "Billing state is required" }),
-  billToZip: z.string().min(1, { message: "Billing ZIP code is required" }),
-  shipToAddress: z.string().min(1, { message: "Shipping address is required" }),
-  shipToCity: z.string().min(1, { message: "Shipping city is required" }),
-  shipToState: z.string().min(1, { message: "Shipping state is required" }),
-  shipToZip: z.string().min(1, { message: "Shipping ZIP code is required" }),
+  // Addresses - Optional
+  billToAddress: z.string().optional(),
+  billToCity: z.string().optional(),
+  billToState: z.string().optional(),
+  billToZip: z.string().optional(),
+  shipToAddress: z.string().optional(),
+  shipToCity: z.string().optional(),
+  shipToState: z.string().optional(),
+  shipToZip: z.string().optional(),
   
-  // Credit Terms - REQUIRED
-  requestedCreditAmount: z.number()
-    .min(1000, { message: "Minimum credit amount is $1,000" })
-    .max(1000000, { message: "Maximum initial credit request is $1,000,000" }),
+  // Credit Terms - OPTIONAL
+  requestedCreditAmount: z.number().optional(),
   isTaxExempt: z.string().optional(),
   usesPaymentPortal: z.string().optional(),
   
-  // Contact Emails - REQUIRED (less strict validation)
-  buyerNameEmail: z.string()
-    .email({ message: "Valid buyer email is required" })
-    .refine(val => !detectFakeData(val), {
-      message: "Please enter a real business email address (no test data or fake patterns)"
-    }),
-  accountsPayableNameEmail: z.string()
-    .email({ message: "Valid accounts payable email is required" })
-    .refine(val => !detectFakeData(val), {
-      message: "Please enter a real business email address (no test data or fake patterns)"
-    }),
+  // Contact Emails - OPTIONAL
+  buyerNameEmail: z.string().optional(),
+  accountsPayableNameEmail: z.string().optional(),
   wantInvoicesEmailed: z.boolean().optional(),
-  invoiceEmail: z.string()
-    .email({ message: "Valid invoice email is required" })
-    .optional()
-    .refine(val => !val || !detectFakeData(val), {
-      message: "Please enter a real business email address (no test data or fake patterns)"
-    }),
+  invoiceEmail: z.string().optional(),
   
   // References
   referenceUploadMethod: z.enum(['upload', 'manual']).default('manual'),
@@ -182,10 +152,8 @@ const formSchema = z.object({
   trade3Attn: z.string().optional(),
   trade3Phone: z.string().optional(),
   
-  // Business Description - REQUIRED but with relaxed validation
-  businessDescription: z.string()
-    .min(1, { message: "Business description is required" })
-    .max(1000, { message: "Business description must be under 1000 characters" }),
+  // Business Description - OPTIONAL
+  businessDescription: z.string().optional(),
   
   // Terms and conditions agreement - Required by backend
   termsAgreed: z.boolean().refine(val => val === true, {
@@ -504,7 +472,7 @@ export default function CustomerApplicationForm() {
                   <p><strong>Contact Information:</strong> Business emails only (no personal Gmail/Yahoo accounts)</p>
                   <p><strong>Business Description:</strong> Describe your business and chemical needs</p>
                   <p><strong>Addresses:</strong> Complete billing and shipping addresses with proper City, State ZIP format</p>
-                  <p><strong>References:</strong> At least one trade reference with phone number + bank name required</p>
+                  <p><strong>References:</strong> Trade references optional but recommended</p>
                   <p><strong>Credit Amount:</strong> Between $1,000 - $1,000,000 initial request</p>
                 </div>
                 <div className="mt-3 p-3 bg-amber-100 rounded-lg border border-amber-300">
@@ -1278,7 +1246,7 @@ export default function CustomerApplicationForm() {
 
                   {/* Trade Reference Upload */}
                   <div className="p-6 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Trade References (minimum 3 required)</h3>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Trade References (optional)</h3>
                     <div className="flex items-center justify-center w-full">
                       <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-amber-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-amber-50">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -1336,7 +1304,7 @@ export default function CustomerApplicationForm() {
 
                   {/* Trade References Manual Entry */}
                   <div className="p-6 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Trade References (minimum 3 required)</h3>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Trade References (optional)</h3>
                     
                     {/* Trade Reference 1 */}
                     <div className="mb-6">

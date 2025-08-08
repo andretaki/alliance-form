@@ -2,25 +2,21 @@ import { z } from 'zod';
 
 // Customer Application Validation Schema
 export const customerApplicationSchema = z.object({
-  legalEntityName: z.string().min(1, { message: "Legal Entity Name is required" }),
+  legalEntityName: z.string().optional(),
   dba: z.string().optional(),
-  taxEIN: z.string()
-    .min(1, { message: "Tax EIN is required" })
-    .regex(/^(\d{9}|\d{2}-\d{7})$/, { 
-      message: "Tax EIN must be 9 digits or XX-XXXXXXX format" 
-    }),
+  taxEIN: z.string().optional(),
   dunsNumber: z.string().optional(),
-  phoneNo: z.string().min(1, { message: "Phone Number is required" }),
-  billToAddress: z.string().min(1, { message: "Billing Address is required" }),
-  billToCity: z.string().min(1, { message: "Billing City is required" }),
-  billToState: z.string().min(1, { message: "Billing State is required" }),
-  billToZip: z.string().min(1, { message: "Billing ZIP code is required" }),
-  shipToAddress: z.string().min(1, { message: "Shipping Address is required" }),
-  shipToCity: z.string().min(1, { message: "Shipping City is required" }),
-  shipToState: z.string().min(1, { message: "Shipping State is required" }),
-  shipToZip: z.string().min(1, { message: "Shipping ZIP code is required" }),
-  buyerNameEmail: z.string().min(1, { message: "Buyer Name/Email is required" }),
-  accountsPayableNameEmail: z.string().min(1, { message: "Accounts Payable Name/Email is required" }),
+  phoneNo: z.string().optional(),
+  billToAddress: z.string().optional(),
+  billToCity: z.string().optional(),
+  billToState: z.string().optional(),
+  billToZip: z.string().optional(),
+  shipToAddress: z.string().optional(),
+  shipToCity: z.string().optional(),
+  shipToState: z.string().optional(),
+  shipToZip: z.string().optional(),
+  buyerNameEmail: z.string().optional(),
+  accountsPayableNameEmail: z.string().optional(),
   wantInvoicesEmailed: z.boolean().optional(),
   invoiceEmail: z.string().optional(),
   // Trade references - updated to separate fields
